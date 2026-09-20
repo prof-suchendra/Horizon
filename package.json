@@ -1,0 +1,21 @@
+{
+  "name": "horizon",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "node -c main.js && node -c swift-script.js && echo 'Build validation passed cleanly with 0 errors.'",
+    "test": "node -c main.js && node -c swift-script.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "electron": "^44.4.3"
+  },
+  "dependencies": {
+    "ytmusic-api": "^5.3.1"
+  }
+}

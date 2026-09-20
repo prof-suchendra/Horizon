@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: horizon-youtube-proxy
+    env: docker
+    plan: free
+    region: ohio
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: PORT
+        value: 8000

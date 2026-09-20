@@ -1,0 +1,13 @@
+# Exclude Cordova and APK files
+horizonApp/
+*.apk
+
+# Exclude node_modules
+node_modules/
+
+# Exclude temp files from debugging
+*.patch
+patch_*.js
+setup_env.sh
+build_apk.sh
+temp_*
