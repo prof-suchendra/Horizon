@@ -313,6 +313,17 @@ function extractArtist(song, fallback = "Unknown Artist") {
       }
     }
 
+    if (url.pathname === "/api/get-url") {
+      const trackId = url.searchParams.get("id");
+      if (!trackId) return new Response(JSON.stringify({ error: "Missing ID" }), { status: 400, headers });
+      try {
+        const streamUrl = await getStreamUrl(trackId);
+        return new Response(JSON.stringify({ url: streamUrl }), { headers: { ...headers, "Content-Type": "application/json" } });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), { status: 500, headers });
+      }
+    }
+
     if (url.pathname === "/stream") {
       const trackId = url.searchParams.get("id");
       const title = url.searchParams.get("title") || "";
