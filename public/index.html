@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https: http:; img-src 'self' data: content: https: http:; connect-src 'self' https: http: http://localhost:8000 https://ssdas001-horizon.hf.space https://lrclib.net;">
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <title>Horizon • Neo-Brutalist Music Player</title>
+    <link rel="stylesheet" href="swift-style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <!-- 5-Second Intro Splash Screen -->
+    <div id="splash-screen" class="splash-screen">
+        <div class="splash-content">
+            <img src="logo.png" alt="Horizon Logo" class="splash-logo">
+            <h1 class="splash-title">Horizon.</h1>
+            <div class="splash-progress">
+                <div class="splash-progress-bar"></div>
+            </div>
+        </div>
+    </div>
+    <div class="app-container">
+        <!-- Desktop Sidebar (Hidden on mobile <768px, visible on desktop/tablet >=768px) -->
+        <aside class="app-sidebar">
+            <div class="sidebar-top">
+                <div class="sidebar-brand">
+                    <img src="logo.png" alt="Logo" class="sidebar-logo-img">
+                    <h1 class="sidebar-title">Horizon.</h1>
+                </div>
+
+                <nav class="sidebar-nav">
+                    <button class="sidebar-nav-item active" id="sidebar-nav-home" onclick="switchMainTab('home-screen')">
+                        <i data-lucide="home"></i>
+                        <span>Home</span>
+                    </button>
+                    <button class="sidebar-nav-item" id="sidebar-nav-search" onclick="switchMainTab('search-screen')">
+                        <i data-lucide="search"></i>
+                        <span>Search</span>
+                    </button>
+                    <button class="sidebar-nav-item" id="sidebar-nav-library" onclick="switchMainTab('library-screen')">
+                        <i data-lucide="library"></i>
+                        <span>Library</span>
+                    </button>
+                    <button class="sidebar-nav-item" id="sidebar-nav-settings" onclick="switchMainTab('profile-screen')">
+                        <i data-lucide="settings"></i>
+                        <span>Settings</span>
+                    </button>
+                </nav>
+
+                <div class="sidebar-divider"></div>
+
+                <div class="sidebar-collections">
+                    <span class="sidebar-section-label">COLLECTIONS</span>
+                    <button class="sidebar-link-btn" onclick="openPlaylistDetails('liked')">
+                        <i data-lucide="heart"></i>
+                        <span>Liked Songs</span>
+                    </button>
+                    <button class="sidebar-link-btn" onclick="openPlaylistDetails('downloads')">
+                        <i data-lucide="download"></i>
+                        <span>Downloads</span>
+                    </button>
+                    <button class="sidebar-link-btn" onclick="openPlaylistDetails('recently_played')">
+                        <i data-lucide="history"></i>
+                        <span>Recently Played</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="sidebar-bottom">
+                <button class="neo-action-btn" onclick="toggleShortcutsModal()" style="width: 100%; font-size: 0.8rem; padding: 10px;">
+                    <i data-lucide="keyboard"></i> Shortcuts
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Viewport Area -->
+        <div class="app-main-viewport">
+            <!-- Toast / Notification Banner -->
+            <div id="toastBanner" class="toast-banner" style="display: none;"></div>
+
+            <!-- Home Screen -->
+            <main id="home-screen" class="screen active">
+                <header class="home-wordmark-header">
+                    <div class="home-wordmark-flex">
+                        <img src="logo.png" alt="Logo" class="home-logo-img">
+                        <h1 class="musify-wordmark">Horizon<span class="musify-dot">.</span></h1>
+                    </div>
+                </header>
+
+                <!-- Suggested Playlists Section -->
+                <section class="suggested-section">
+                    <div class="section-header">
+                        <h2 class="display-font">Suggested playlists</h2>
+                    </div>
+                    <div class="suggested-scroll" id="suggestedPlaylistsContainer">
+                        <!-- Populated by JS -->
+                    </div>
+                </section>
+
+                <!-- Time Machine Section -->
+                <section class="time-machine-section">
+                    <div class="time-machine-card">
+                        <div class="time-machine-header">
+                            <div class="time-machine-title-col">
+                                <span class="time-machine-label">TIME MACHINE</span>
+                                <span class="stat-minutes-value" id="tmMinutesDisplay">0 mins</span>
+                            </div>
+                            <div class="time-machine-pill" id="tmSourceDatePill">Recently Played • Sep 2026</div>
+                        </div>
+
+                        <div class="time-machine-list" id="timeMachineList">
+                            <!-- Numbered 1-5 top tracks with art, title, artist, headphone play count, 3-dot menu -->
+                        </div>
+
+                        <button class="listening-stats-pill-btn" onclick="openListeningStatsModal()">
+                            <i data-lucide="bar-chart-2"></i>
+                            <span>Listening stats</span>
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Recommended for you Section -->
+                <section class="recommended-section">
+                    <div class="section-header-recommended">
+                        <div class="recommended-title-wrap">
+                            <i data-lucide="sparkles" class="sparkle-icon"></i>
+                            <h2 class="display-font">Recommended for you</h2>
+                        </div>
+                        <button class="play-all-circle-btn" onclick="playAllRecommended()" title="Play All">
+                            <i data-lucide="play" fill="currentColor"></i>
+                        </button>
+                    </div>
+                    <div class="chart-list" id="recommendedTracksList">
+                        <!-- Vertical list of tracks -->
+                    </div>
+                </section>
+            </main>
+
+            <!-- Search Screen -->
+            <main id="search-screen" class="screen">
+                <header class="search-header-top">
+                    <h1 class="search-main-title">Search</h1>
+                </header>
+
+                <div class="search-input-container">
+                    <i data-lucide="search" class="search-input-left-icon"></i>
+                    <input type="text" placeholder="Artists, songs, or podcasts..." id="searchInput" autocomplete="off">
+                    <button id="searchClearBtn" class="search-clear-btn" style="display: none;" onclick="clearSearch()">
+                        <i data-lucide="x"></i>
+                    </button>
+                    <button class="search-filter-btn" id="searchFilterBtn" onclick="toggleSearchFilterModal()" title="Search filters & settings">
+                        <i data-lucide="sliders-horizontal"></i>
+                    </button>
+                </div>
+
+                <!-- Recent Searches Section -->
+                <section class="recent-searches-section" id="recentSearchesSection">
+                    <div class="recent-searches-header">
+                        <h3 class="recent-searches-title">Recent searches</h3>
+                        <button class="clear-recent-searches-btn" id="clearRecentSearchesBtn" onclick="clearAllRecentSearches()">Clear all</button>
+                    </div>
+                    <div class="recent-searches-list" id="recentSearchesList">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+                </section>
+
+                <!-- Search Results Section -->
+                <section class="search-results-section" id="searchResultsSection" style="display: none;">
+                    <div class="section-header search-results-top-row">
+                        <h2 class="display-font" id="searchResultsHeader">RESULTS</h2>
+                        <button class="see-all-btn" onclick="resetSearchToRecent()">Back to recent</button>
+                    </div>
+                    <div class="chart-list" id="searchResultsList">
+                        <!-- Search results rendered via JS -->
+                    </div>
+                </section>
+            </main>
+
+        <!-- Library Screen -->
+        <main id="library-screen" class="screen">
+            <header class="library-header-top">
+                <h1 class="library-main-title">Library</h1>
+            </header>
+
+            <!-- Grouped Fixed Entries Card (Recently Played, Liked Songs, Offline Songs, Radio Stations) -->
+            <div class="library-grouped-card">
+                <!-- 1. Recently Played (Clock icon) -->
+                <div class="library-grouped-item" onclick="openPlaylistDetails('recently_played')">
+                    <div class="library-blob-icon blob-teal">
+                        <i data-lucide="clock"></i>
+                    </div>
+                    <div class="library-item-content">
+                        <span class="library-item-title">Recently played</span>
+                        <span class="library-item-count" id="recentCountBadge">0 tracks</span>
+                    </div>
+                    <i data-lucide="chevron-right" class="library-item-arrow"></i>
+                </div>
+
+                <div class="library-card-divider"></div>
+
+                <!-- 2. Liked Songs (Heart icon) -->
+                <div class="library-grouped-item" onclick="openPlaylistDetails('liked')">
+                    <div class="library-blob-icon blob-pink">
+                        <i data-lucide="heart" fill="currentColor"></i>
+                    </div>
+                    <div class="library-item-content">
+                        <span class="library-item-title">Liked songs</span>
+                        <span class="library-item-count" id="likedCountBadge">0 tracks</span>
+                    </div>
+                    <i data-lucide="chevron-right" class="library-item-arrow"></i>
+                </div>
+
+                <div class="library-card-divider"></div>
+
+                <!-- 3. Offline Songs (Cloud-with-slash icon) -->
+                <div class="library-grouped-item" onclick="openPlaylistDetails('downloads')">
+                    <div class="library-blob-icon blob-orange">
+                        <i data-lucide="cloud-off"></i>
+                    </div>
+                    <div class="library-item-content">
+                        <span class="library-item-title">Offline songs</span>
+                        <span class="library-item-count" id="downloadsCountBadge">0 tracks</span>
+                    </div>
+                    <i data-lucide="chevron-right" class="library-item-arrow"></i>
+                </div>
+            </div>
+
+            <!-- Custom Playlists Section with Folder and Plus Buttons -->
+            <section class="custom-playlists-section">
+                <div class="custom-playlists-header">
+                    <span class="custom-playlists-label">Custom playlists</span>
+                    <div class="custom-playlists-actions">
+                        <button class="neo-btn-icon-small" onclick="handleCreateFolder()" title="Create New Folder">
+                            <i data-lucide="folder-plus"></i>
+                        </button>
+                        <button class="neo-btn-icon-small" onclick="handleCreatePlaylist()" title="Create New Playlist">
+                            <i data-lucide="plus"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="chart-list" id="libraryPlaylistContainer">
+                    <p style="color: #666; font-size: 14px; padding: 10px 0;">No custom playlists yet.</p>
+                </div>
+            </section>
+        </main>
+
+        <!-- Profile Screen -->
+        <main id="profile-screen" class="screen">
+            <header class="top-bar" style="width: 100%;">
+                <div>
+                    <h1 class="greeting" style="font-size: 1.8rem; font-weight: 800; letter-spacing: -0.5px; margin: 0;">Audio Profile</h1>
+                </div>
+            </header>
+            
+            <div class="profile-header">
+                <div class="artist-image profile-avatar" style="background-image: url('https://picsum.photos/seed/cyberpunk_avatar/200/200');"></div>
+                <h2>Cyber Auditor</h2>
+                <div class="profile-pill">NEO-BRUTALIST PRO • FLAC 24-BIT</div>
+            </div>
+            
+            <div class="settings-list">
+                <div class="setting-row" onclick="toggleShortcutsModal()">
+                    <div class="setting-label">
+                        <i data-lucide="command"></i>
+                        <span>Keyboard Shortcuts</span>
+                    </div>
+                    <span class="setting-value">Space, Arrows, L, M</span>
+                </div>
+                <div class="setting-row" onclick="clearRecentlyPlayedHistory()">
+                    <div class="setting-label">
+                        <i data-lucide="trash-2"></i>
+                        <span>Clear History</span>
+                    </div>
+                    <i data-lucide="chevron-right"></i>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-label">
+                        <i data-lucide="radio"></i>
+                        <span>Backend Engine</span>
+                    </div>
+                    <span class="setting-value">YouTube / DAB Hi-Fi</span>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-label">
+                        <i data-lucide="sparkles"></i>
+                        <span>Audio Decoder</span>
+                    </div>
+                    <span class="setting-value">WebAudio / Opus 160k</span>
+                </div>
+            </div>
+        </main>
+
+        <!-- Playlist Detail Screen -->
+        <main id="playlist-detail-screen" class="screen" style="display: none;">
+            <header class="top-bar playlist-detail-header">
+                <button class="back-btn neo-btn-icon" onclick="switchMainTab('library-screen')">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+                <div class="playlist-detail-title-wrap">
+                    <h1 class="greeting playlist-detail-title" id="detailPlaylistTitle">Playlist Name</h1>
+                </div>
+                <button id="playlistOptionsBtn" class="neo-btn-icon">
+                    <i data-lucide="more-vertical"></i>
+                </button>
+            </header>
+            
+            <div class="playlist-header-actions">
+                <button class="neo-action-btn primary" onclick="playCurrentPlaylistFromStart()">
+                    <i data-lucide="play" fill="currentColor"></i> Play All
+                </button>
+                <button class="neo-action-btn" onclick="shuffleCurrentPlaylist()">
+                    <i data-lucide="shuffle"></i> Shuffle
+                </button>
+            </div>
+
+            <div class="playlist-actions-menu" id="playlistActions" style="display:none;">
+                <button onclick="handleEditPlaylist()" class="menu-item">
+                    <i data-lucide="edit-2"></i> Rename Playlist
+                </button>
+                <button onclick="handleDeletePlaylist()" class="menu-item danger">
+                    <i data-lucide="trash-2"></i> Delete Playlist
+                </button>
+            </div>
+
+            <div class="chart-list" id="playlistSongList" style="margin-top: 20px;">
+                <!-- Playlist songs will render here -->
+            </div>
+        </main>
+
+        <!-- Mini Player -->
+        <div id="mini-player" class="mini-player" onclick="toggleScreens()">
+            <div class="mini-progress-track">
+                <div class="mini-progress-fill" id="miniProgressFill"></div>
+            </div>
+            <div class="mini-cover" id="miniCover"></div>
+            <div class="mini-song-info">
+                <h3 id="miniTitle">No Track Playing</h3>
+                <p id="miniArtist">Select a track to start</p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <button class="play-btn-mini" id="miniPlayBtn" onclick="event.stopPropagation(); togglePlay();" title="Play / Pause">
+                    <i data-lucide="play" fill="currentColor"></i>
+                </button>
+                <button class="play-btn-mini" id="miniNextBtn" onclick="event.stopPropagation(); nextSong();" title="Next Track">
+                    <i data-lucide="skip-forward"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Now Playing Screen -->
+        <main id="now-playing-screen" class="screen">
+            <header class="top-bar-now-playing">
+                <button class="back-btn neo-btn-icon" onclick="toggleScreens()" title="Close Player">
+                    <i data-lucide="chevron-down"></i>
+                </button>
+                
+                <div style="display:flex; gap:10px;">
+                    <button class="like-btn neo-btn-icon" id="npLikeBtn" onclick="toggleLikeCurrentSong()" title="Like Track">
+                        <i data-lucide="heart"></i>
+                    </button>
+                </div>
+            </header>
+
+            <div class="now-playing-cover" id="npCoverContainer" onclick="toggleLyricsOverlay()">
+                <img id="npCover" src="https://picsum.photos/seed/eminem/400/400" alt="Album Cover">
+                
+                <div class="lyrics-overlay" id="npLyrics" onclick="event.stopPropagation();">
+                    <div class="lyrics-header">
+                        <span>SYNCHRONIZED LYRICS</span>
+                        <button class="close-lyrics-btn" onclick="toggleLyricsOverlay()"><i data-lucide="x"></i></button>
+                    </div>
+                    <div id="lyricsLinesContainer" class="lyrics-scroll-body">
+                        <div class="lyrics-empty-state">
+                            <p>Loading synchronized lyrics...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="now-playing-info">
+                <h2 id="npTitle">Title</h2>
+                <p id="npArtist">Artist</p>
+            </div>
+
+            <!-- Waveform & Interactive Scrubber -->
+            <div class="waveform-container" id="waveformContainer">
+                <div class="waveform-bars-wrap" id="waveformBars">
+                    <svg viewBox="0 0 400 50" class="waveform-svg" preserveAspectRatio="none">
+                        <!-- Background Waveform -->
+                        <path class="wave-bg" d="M 0,25 C 20,5 30,45 50,25 C 70,5 80,45 100,25 C 120,5 130,45 150,25 C 170,5 180,45 200,25 C 220,5 230,45 250,25 C 270,5 280,45 300,25 C 320,5 330,45 350,25 C 370,5 380,45 400,25 L 400,50 L 0,50 Z" />
+                        <!-- Filled Active Waveform with Clip Path -->
+                        <path class="wave-fill" d="M 0,25 C 20,5 30,45 50,25 C 70,5 80,45 100,25 C 120,5 130,45 150,25 C 170,5 180,45 200,25 C 220,5 230,45 250,25 C 270,5 280,45 300,25 C 320,5 330,45 350,25 C 370,5 380,45 400,25 L 400,50 L 0,50 Z" clip-path="url(#progress-clip)" />
+                        <defs>
+                            <clipPath id="progress-clip">
+                                <rect id="npProgressRect" width="0" height="50" x="0" y="0"></rect>
+                            </clipPath>
+                        </defs>
+                    </svg>
+                    <!-- Visual Scrubber Line & Bead -->
+                    <div class="scrubber-cursor" id="scrubberCursor">
+                        <div class="scrubber-bead"></div>
+                    </div>
+                    <!-- Time Tooltip on Hover/Scrub -->
+                    <div class="scrub-tooltip" id="scrubTooltip">0:00</div>
+                </div>
+
+                <div class="time-labels">
+                    <span id="npTimeCurrent" class="mono-font">0:00</span>
+                    <span class="scrub-instruction">SEEKABLE WAVEFORM</span>
+                    <span id="npTimeTotal" class="mono-font">0:00</span>
+                </div>
+            </div>
+
+            <!-- Volume Control Slider -->
+            <div class="volume-container">
+                <button class="volume-btn" id="volumeMuteBtn" onclick="toggleMute()" title="Mute/Unmute">
+                    <i data-lucide="volume-2" id="volumeIcon"></i>
+                </button>
+                <div class="volume-slider-track">
+                    <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="1" oninput="handleVolumeChange(this.value)">
+                    <div class="volume-fill-bar" id="volumeFillBar" style="width: 100%;"></div>
+                </div>
+                <span class="volume-percent mono-font" id="volumePercent">100%</span>
+            </div>
+
+            <!-- Playback Controls -->
+            <div class="playback-controls">
+                <button id="shuffleBtn" class="control-btn" onclick="toggleShuffle()" title="Shuffle">
+                    <i data-lucide="shuffle"></i>
+                </button>
+                <button id="npPrevBtn" class="control-btn" onclick="prevSong()" title="Previous (P)">
+                    <i data-lucide="skip-back" fill="currentColor"></i>
+                </button>
+                <button class="play-btn-main" id="npPlayBtn" onclick="togglePlay()" title="Play/Pause (Space)">
+                    <i data-lucide="play" fill="currentColor"></i>
+                </button>
+                <button id="npNextBtn" class="control-btn" onclick="nextSong()" title="Next (N)">
+                    <i data-lucide="skip-forward" fill="currentColor"></i>
+                </button>
+                <button id="repeatBtn" class="control-btn" onclick="toggleRepeat()" title="Repeat">
+                    <i data-lucide="repeat"></i>
+                </button>
+            </div>
+        </main>
+
+        
+        <!-- Mini Popup for Offline Availability -->
+        <div id="miniPopup" class="mini-popup">
+            song available offline
+        </div>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <a href="#" class="nav-item active" id="nav-home" onclick="switchMainTab('home-screen')">
+                <i data-lucide="home"></i>
+                <span>Home</span>
+            </a>
+            <a href="#" class="nav-item" id="nav-search" onclick="switchMainTab('search-screen')">
+                <i data-lucide="search"></i>
+                <span>Search</span>
+            </a>
+            <a href="#" class="nav-item" id="nav-library" onclick="switchMainTab('library-screen')">
+                <i data-lucide="library"></i>
+                <span>Library</span>
+            </a>
+            <a href="#" class="nav-item" id="nav-settings" onclick="switchMainTab('profile-screen')">
+                <i data-lucide="settings"></i>
+                <span>Settings</span>
+            </a>
+        </nav>
+        </div>
+    </div>
+
+    <!-- Hidden Audio Element -->
+    <audio id="audioPlayer" crossorigin="anonymous" preload="auto"></audio>
+
+    <!-- Add to Playlist Modal -->
+    <div id="addToPlaylistModal" class="modal-backdrop" style="display:none;" onclick="if(event.target===this) this.style.display='none'">
+        <div class="neo-modal">
+            <div class="modal-header">
+                <h2 class="display-font" style="font-size: 1.1rem;">ADD TO PLAYLIST</h2>
+                <button class="modal-close-btn" onclick="document.getElementById('addToPlaylistModal').style.display='none'">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div id="modalPlaylistList" class="modal-list">
+                <!-- Playlist options go here -->
+            </div>
+            <button class="neo-action-btn" onclick="createNewPlaylistAndAdd()" style="margin-top: 15px; width: 100%;">
+                <i data-lucide="plus"></i> New Playlist
+            </button>
+        </div>
+    </div>
+
+    <!-- Custom Prompt Modal (Create / Rename Playlist) -->
+    <div id="customPromptModal" class="modal-backdrop" style="display:none;" onclick="if(event.target===this) closeCustomPromptModal()">
+        <div class="neo-modal" style="max-width: 320px;">
+            <div class="modal-header">
+                <h2 class="display-font" id="customPromptTitle" style="font-size: 1.1rem;">NEW PLAYLIST</h2>
+                <button class="modal-close-btn" onclick="closeCustomPromptModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+                <input type="text" id="customPromptInput" placeholder="Enter playlist name..." style="padding: 12px 14px; border: 2px solid #000; border-radius: 8px; font-weight: 700; width: 100%; box-sizing: border-box; font-family: inherit;" onkeydown="if(event.key==='Enter') submitCustomPromptModal()">
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button class="neo-action-btn" onclick="closeCustomPromptModal()" style="padding: 8px 14px; font-size: 0.85rem;">Cancel</button>
+                    <button class="neo-action-btn primary" id="customPromptSubmitBtn" onclick="submitCustomPromptModal()" style="padding: 8px 16px; font-size: 0.85rem;">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Confirmation Modal -->
+    <div id="customConfirmModal" class="modal-backdrop" style="display:none;" onclick="if(event.target===this) closeCustomConfirmModal()">
+        <div class="neo-modal" style="max-width: 320px;">
+            <div class="modal-header">
+                <h2 class="display-font" id="customConfirmTitle" style="font-size: 1.1rem;">CONFIRM ACTION</h2>
+                <button class="modal-close-btn" onclick="closeCustomConfirmModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+                <p id="customConfirmMessage" style="font-weight: 600; font-size: 0.9rem; color: #333; margin: 0;">Are you sure you want to proceed?</p>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button class="neo-action-btn" onclick="closeCustomConfirmModal()" style="padding: 8px 14px; font-size: 0.85rem;">Cancel</button>
+                    <button class="neo-action-btn" id="customConfirmSubmitBtn" onclick="submitCustomConfirmModal()" style="padding: 8px 16px; font-size: 0.85rem; background: #ff4444; color: #fff;">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Keyboard Shortcuts Modal -->
+    <div id="shortcutsModal" class="modal-backdrop" style="display:none;" onclick="if(event.target===this) this.style.display='none'">
+        <div class="neo-modal">
+            <div class="modal-header">
+                <h2 class="display-font" style="font-size: 1.1rem;">HOTKEYS & SHORTCUTS</h2>
+                <button class="modal-close-btn" onclick="toggleShortcutsModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="shortcut-rows">
+                <div class="shortcut-item">
+                    <span class="key-badge">Space</span>
+                    <span>Play / Pause Audio</span>
+                </div>
+                <div class="shortcut-item">
+                    <span class="key-badge">←</span> <span class="key-badge">→</span>
+                    <span>Seek Backward / Forward (5s)</span>
+                </div>
+                <div class="shortcut-item">
+                    <span class="key-badge">N</span> / <span class="key-badge">P</span>
+                    <span>Next / Previous Track</span>
+                </div>
+                <div class="shortcut-item">
+                    <span class="key-badge">↑</span> <span class="key-badge">↓</span>
+                    <span>Volume Up / Down</span>
+                </div>
+                <div class="shortcut-item">
+                    <span class="key-badge">M</span>
+                    <span>Mute / Unmute</span>
+                </div>
+                <div class="shortcut-item">
+                    <span class="key-badge">L</span>
+                    <span>Toggle Lyrics Overlay</span>
+                </div>
+                <div class="shortcut-item">
+                    <span class="key-badge">Esc</span>
+                    <span>Close Player or Modals</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Listening Stats Modal -->
+    <div id="listeningStatsModal" class="modal-backdrop" style="display:none;" onclick="if(event.target===this) this.style.display='none'">
+        <div class="neo-modal" style="max-width: 420px; width: 90%;">
+            <div class="modal-header">
+                <h2 class="display-font" style="font-size: 1.1rem;"><i data-lucide="bar-chart-2" style="display:inline-block; vertical-align:middle; margin-right:6px;"></i> LISTENING STATS</h2>
+                <button class="modal-close-btn" onclick="document.getElementById('listeningStatsModal').style.display='none'">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="stats-modal-body">
+                <div class="stats-hero-card">
+                    <span class="stats-hero-num" id="statsModalMinutes">0</span>
+                    <span class="stats-hero-label">Total Minutes Listened This Month</span>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span class="stat-box-title">TOP GENRE</span>
+                        <span class="stat-box-val" id="statsTopGenre">Pop / Mix</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-box-title">DAILY AVG</span>
+                        <span class="stat-box-val" id="statsDailyAvg">0 mins</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-box-title">TOP ARTIST</span>
+                        <span class="stat-box-val" id="statsTopArtist">—</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-box-title">TRACKS PLAYED</span>
+                        <span class="stat-box-val" id="statsTracksPlayed">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search Filter Modal -->
+    <div id="searchFilterModal" class="modal-backdrop" style="display:none;" onclick="if(event.target===this) this.style.display='none'">
+        <div class="neo-modal" style="max-width: 360px; width: 90%;">
+            <div class="modal-header">
+                <h2 class="display-font" style="font-size: 1.1rem;"><i data-lucide="sliders-horizontal" style="display:inline-block; vertical-align:middle; margin-right:6px;"></i> SEARCH FILTERS</h2>
+                <button class="modal-close-btn" onclick="document.getElementById('searchFilterModal').style.display='none'">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:16px; margin-top:8px;">
+                <div>
+                    <label style="font-weight:700; font-size:0.85rem; display:block; margin-bottom:6px;">CONTENT TYPE</label>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button class="filter-chip active" onclick="setSearchFilter('type', 'all', this)">All</button>
+                        <button class="filter-chip" onclick="setSearchFilter('type', 'songs', this)">Songs</button>
+                        <button class="filter-chip" onclick="setSearchFilter('type', 'artists', this)">Artists</button>
+                    </div>
+                </div>
+                <div>
+                    <label style="font-weight:700; font-size:0.85rem; display:block; margin-bottom:6px;">SOURCE</label>
+                    <div style="display:flex; gap:8px;">
+                        <button class="filter-chip active" onclick="setSearchFilter('source', 'online', this)">Online Stream</button>
+                        <button class="filter-chip" onclick="setSearchFilter('source', 'offline', this)">Offline Only</button>
+                    </div>
+                </div>
+                <button class="neo-action-btn primary" onclick="applySearchFilter()" style="margin-top:8px; width:100%;">
+                    Apply Filters
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reusable Song Action Sheet Modal (Musify Spec Section 4) -->
+    <div id="songActionSheetModal" class="modal-backdrop action-sheet-backdrop" style="display:none;" onclick="if(event.target===this) closeSongActionSheet()">
+        <div class="neo-action-sheet" onclick="event.stopPropagation()">
+            <div class="sheet-drag-handle"></div>
+            
+            <!-- Song Info Header -->
+            <div class="sheet-track-header">
+                <div class="sheet-track-cover" id="sheetTrackCover"></div>
+                <div class="sheet-track-info">
+                    <h3 id="sheetTrackTitle">Song Title</h3>
+                    <p id="sheetTrackArtist">Artist Name</p>
+                </div>
+                <button class="sheet-close-btn" onclick="closeSongActionSheet()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+
+            <div class="sheet-divider"></div>
+
+            <!-- Action Options in Specified Order: Play next, Add to queue, Add/Remove Liked, Add to playlist, Conditional download -->
+            <div class="sheet-actions-list">
+                <!-- 1. Play next -->
+                <button class="sheet-action-item" onclick="handleMenuPlayNext()">
+                    <div class="sheet-action-icon"><i data-lucide="corner-down-right"></i></div>
+                    <span class="sheet-action-text">Play next</span>
+                </button>
+
+                <!-- 2. Add to queue -->
+                <button class="sheet-action-item" onclick="handleMenuAddToQueue()">
+                    <div class="sheet-action-icon"><i data-lucide="list-plus"></i></div>
+                    <span class="sheet-action-text">Add to queue</span>
+                </button>
+
+                <!-- 3. Add to / Remove from Liked Songs -->
+                <button class="sheet-action-item" id="menuToggleLikeBtn" onclick="handleMenuToggleLike()">
+                    <div class="sheet-action-icon"><i data-lucide="heart" id="menuLikeIcon"></i></div>
+                    <span class="sheet-action-text" id="menuToggleLikeLabel">Add to Liked Songs</span>
+                </button>
+
+                <!-- 4. Add to playlist -->
+                <button class="sheet-action-item" onclick="handleMenuOpenPlaylistSubsheet()">
+                    <div class="sheet-action-icon"><i data-lucide="folder-plus"></i></div>
+                    <span class="sheet-action-text" style="flex:1;">Add to playlist</span>
+                    <i data-lucide="chevron-right" class="sheet-item-arrow"></i>
+                </button>
+
+                <!-- 5. Conditional Download Action -->
+                <button class="sheet-action-item" id="menuDownloadActionBtn" onclick="handleMenuDownloadAction()">
+                    <div class="sheet-action-icon" id="menuDownloadIconWrap"><i data-lucide="download" id="menuDownloadIcon"></i></div>
+                    <span class="sheet-action-text" id="menuDownloadActionLabel">Make offline</span>
+                </button>
+
+                <!-- 6. Remove from current playlist -->
+                <button class="sheet-action-item" id="menuRemoveFromPlaylistBtn" style="display:none;" onclick="handleMenuRemoveFromPlaylist()">
+                    <div class="sheet-action-icon" style="color:#ff4444;"><i data-lucide="folder-minus" style="color:#ff4444;"></i></div>
+                    <span class="sheet-action-text" id="menuRemoveFromPlaylistLabel" style="color:#ff4444; font-weight:700;">Remove from playlist</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add to Playlist Sub-Sheet Modal -->
+    <div id="playlistSubSheetModal" class="modal-backdrop action-sheet-backdrop" style="display:none;" onclick="if(event.target===this) closePlaylistSubSheet()">
+        <div class="neo-action-sheet" onclick="event.stopPropagation()">
+            <div class="sheet-drag-handle"></div>
+            <div class="sheet-sub-header">
+                <button class="sheet-back-btn" onclick="backToMainActionSheet()">
+                    <i data-lucide="arrow-left"></i>
+                </button>
+                <h3 class="display-font" style="font-size: 1.05rem;">ADD TO PLAYLIST</h3>
+                <button class="sheet-close-btn" onclick="closePlaylistSubSheet()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+
+            <!-- "Create new playlist" option at top -->
+            <button class="sheet-create-playlist-btn" onclick="handleCreatePlaylistFromSubSheet()">
+                <div class="sheet-action-icon plus-icon-wrap"><i data-lucide="plus"></i></div>
+                <span>Create new playlist</span>
+            </button>
+
+            <div class="sheet-playlist-list" id="subSheetPlaylistList">
+                <!-- Custom playlists rendered here -->
+            </div>
+        </div>
+    </div>
+
+    <script src="swift-script.js"></script>
+</body>
+</html>

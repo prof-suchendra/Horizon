@@ -1,16 +1,8 @@
 // Initialize Lucide icons
 try { lucide.createIcons(); } catch(e) { console.warn("Lucide icons failed to load:", e); }
 // Splash screen intro (5 seconds)
-setTimeout(() => { const s = document.getElementById("splash-screen"); if(s) { s.classList.add("hidden"); setTimeout(() => s.style.display="none", 500); } }, 6000);
-document.addEventListener("DOMContentLoaded", () => {
-    setTimeout(() => {
-        const splash = document.getElementById("splash-screen");
-        if(splash) {
-            splash.classList.add("hidden");
-            setTimeout(() => splash.style.display = "none", 500);
-        }
-    }, 5000);
-});
+
+
 
 // Environment / Node.js Bridges
 let fsNode, pathNode, osNode, httpNode;
@@ -153,8 +145,8 @@ const audio = document.getElementById('audioPlayer');
 // State
 // --- API CONFIGURATION ---
 // Set this to your deployed public URL when shipping the APK
-const ENV = 'dev'; // Change to 'prod'
-const PROXY_URL = ENV === 'prod' ? 'https://api.yourserver.com' : 'http://localhost:8000';
+const ENV = 'prod'; // Change to 'prod'
+const PROXY_URL = ENV === 'prod' ? 'https://horizon-youtube-proxy.onrender.com' : 'http://localhost:8000';
 let queue = [];
 let currentIndex = -1;
 let isPlaying = false;
@@ -743,11 +735,7 @@ let activeMenuTrack = null;
 function isTrackDownloaded(trackId) {
     if (!trackId) return false;
     const downloads = getDownloadedSongs();
-    const found = downloads.find(s => s.id === trackId);
-    if (!found) return false;
-    if (false) {}
-    }
-    return true;
+    return !!downloads.find(s => s.id === trackId);
 }
 
 function getDownloadedTrack(trackId) {
@@ -1361,6 +1349,7 @@ async function executeSearch(query) {
             try { lucide.createIcons(); } catch(e){}
         }, 3000);
         
+        console.log("DEBUG: Calling URL:", fetchUrl);
         const res = await fetch(fetchUrl);
         clearTimeout(coldStartTimer);
 
@@ -2625,17 +2614,64 @@ window.addEventListener('keydown', (e) => {
 });
 
 // Startup Initialization
-setTimeout(() => { const s = document.getElementById("splash-screen"); if(s) { s.classList.add("hidden"); setTimeout(() => s.style.display="none", 500); } }, 6000);
-document.addEventListener("DOMContentLoaded", () => {
+function initializeApp() {
+    console.log("[App] Initialization started");
     syncOfflineDownloadsWithBackend();
     renderLibrary();
     loadHomeContent();
     updateLibraryBadges();
+    
+    // Add event listeners
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+    
+    // Auto-update charts periodically
+    setInterval(loadHomeContent, 600000); 
+    
+    // Theme setup
+    const savedTheme = localStorage.getItem('theme') || 'system';
+    setTheme(savedTheme);
+
+    // Hide splash screen immediately after init is done
+    const splash = document.getElementById("splash-screen");
+    if(splash) {
+        console.log("[App] Hiding splash screen");
+        splash.classList.add("hidden");
+        setTimeout(() => splash.style.display = "none", 500);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    console.log("[App] DOMContentLoaded fired");
+    if (window.cordova) {
+        console.log("[App] Cordova detected, waiting for deviceready");
+        document.addEventListener("deviceready", () => {
+            console.log("[App] deviceready fired");
+            initializeApp();
+        }, false);
+        
+        // Fallback in case deviceready gets lost (happens in some webviews)
+        setTimeout(() => {
+            if(!window.__appInitialized) {
+                console.log("[App] deviceready timeout fallback!");
+                initializeApp();
+            }
+        }, 8000);
+    } else {
+        console.log("[App] Browser mode detected, initializing immediately");
+        initializeApp();
+    }
 });
-syncOfflineDownloadsWithBackend();
-renderLibrary();
-loadHomeContent();
-updateLibraryBadges();
+
+// Guard flag
+window.__appInitialized = false;
+const oldInit = initializeApp;
+initializeApp = function() {
+    if(window.__appInitialized) return;
+    window.__appInitialized = true;
+    oldInit();
+};
 
 function downloadCurrentSong() {
     if (currentIndex < 0 || !queue[currentIndex]) {

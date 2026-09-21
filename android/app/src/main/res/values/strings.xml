@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Horizon</string>
+    <string name="title_activity_main">Horizon</string>
+    <string name="package_name">com.atomiqindia.horizon</string>
+    <string name="custom_url_scheme">com.atomiqindia.horizon</string>
+</resources>

@@ -83,7 +83,7 @@ async function getStreamUrl(trackId, title = '', artist = '') {
 }
 
 serve({
-  port: process.env.PORT || 8000,
+  port: process.env.PORT || 7860,
   async fetch(req) {
     const url = new URL(req.url);
 
@@ -412,7 +412,7 @@ function extractArtist(song, fallback = "Unknown Artist") {
           }).map(s => ({
             ...s,
             isDownloaded: true,
-            streamUrl: `http://localhost:8000/offline-stream?id=${s.id}`
+            streamUrl: `http://localhost:7860/offline-stream?id=${s.id}`
           }));
 
           return new Response(JSON.stringify(verified), { headers });
@@ -615,7 +615,7 @@ function extractArtist(song, fallback = "Unknown Artist") {
           image,
           filename: actualFilename,
           offlinePath: downloadedFile,
-          streamUrl: `http://localhost:8000/offline-stream?id=${encodeURIComponent(resolvedTrackId)}`,
+          streamUrl: `http://localhost:7860/offline-stream?id=${encodeURIComponent(resolvedTrackId)}`,
           isDownloaded: true
         };
         existingSongs.push(offlineItem);
@@ -646,4 +646,4 @@ function extractArtist(song, fallback = "Unknown Artist") {
     return new Response("YouTube Music Proxy Engine Online", { headers });
   }
 });
-console.log("YouTube Proxy listening on http://localhost:8000");
+console.log("YouTube Proxy listening on http://localhost:7860");

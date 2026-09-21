@@ -146,7 +146,7 @@ const audio = document.getElementById('audioPlayer');
 // --- API CONFIGURATION ---
 // Set this to your deployed public URL when shipping the APK
 const ENV = 'prod'; // Change to 'prod'
-const PROXY_URL = ENV === 'prod' ? 'https://horizon-youtube-proxy.onrender.com' : 'http://localhost:8000';
+const PROXY_URL = ENV === 'prod' ? 'https://ssdas001-horizon.hf.space' : 'http://localhost:8000';
 let queue = [];
 let currentIndex = -1;
 let isPlaying = false;
@@ -1350,7 +1350,16 @@ async function executeSearch(query) {
         }, 3000);
         
         console.log("DEBUG: Calling URL:", fetchUrl);
-        const res = await fetch(fetchUrl);
+        let res;
+        for (let attempt = 0; attempt < 3; attempt++) {
+            res = await fetch(fetchUrl);
+            if (res.status === 429) {
+                console.warn("Rate limited (429), retrying in 2s...");
+                await new Promise(r => setTimeout(r, 2000));
+                continue;
+            }
+            break;
+        }
         clearTimeout(coldStartTimer);
 
         if (!res.ok) throw new Error("Search request failed");
@@ -1536,7 +1545,16 @@ async function playSong(idx) {
     } else {
         // Fetch direct googlevideo URL to bypass proxy streaming limits
         try {
-            const res = await fetch(`${PROXY_URL}/api/get-url?id=${encodeURIComponent(song.id)}`);
+            let res;
+            for (let attempt = 0; attempt < 3; attempt++) {
+                res = await fetch(`${PROXY_URL}/api/get-url?id=${encodeURIComponent(song.id)}`);
+                if (res.status === 429) {
+                    console.warn("Rate limited (429), retrying in 1.5s...");
+                    await new Promise(r => setTimeout(r, 1500));
+                    continue;
+                }
+                break;
+            }
             const data = await res.json();
             if (data.url) {
                 song.streamUrl = data.url;
