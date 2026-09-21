@@ -368,7 +368,9 @@ function extractArtist(song, fallback = "Unknown Artist") {
           newHeaders.set("Content-Length", audioResponse.headers.get("content-length"));
         }
 
-        return new Response(audioResponse.body, { 
+        const buffer = await audioResponse.arrayBuffer();
+        newHeaders.set("Content-Length", buffer.byteLength.toString());
+        return new Response(buffer, { 
           status: audioResponse.status, 
           headers: newHeaders 
         });
