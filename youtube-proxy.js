@@ -36,7 +36,7 @@ async function getStreamUrl(trackId, title = '', artist = '') {
 
     try {
       const ytUrl = `https://www.youtube.com/watch?v=${resolvedId}`;
-      const ytDlpCmd = `yt-dlp -g -f "bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio/ba/b" "${ytUrl}"`;
+      const ytDlpCmd = `yt-dlp -g --extractor-args "youtube:client=android" -f "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/ba/b" "${ytUrl}"`;
       const { stdout } = await execAsync(ytDlpCmd);
       const streamUrl = stdout.trim().split("\n")[0];
       if (streamUrl && streamUrl.startsWith("http")) {
@@ -51,7 +51,7 @@ async function getStreamUrl(trackId, title = '', artist = '') {
   // Fallback: search YouTube for artist + title
   const query = `${cleanArtist} ${cleanTitle}`.trim() || 'popular music';
   try {
-    const searchCmd = `yt-dlp -g -f "bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio/ba/b" "ytsearch1:${query.replace(/"/g, '')}"`;
+    const searchCmd = `yt-dlp -g --extractor-args "youtube:client=android" -f "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/ba/b" "ytsearch1:${query.replace(/"/g, '')}"`;
     const { stdout } = await execAsync(searchCmd);
     const streamUrl = stdout.trim().split("\n")[0];
     if (streamUrl && streamUrl.startsWith("http")) {
@@ -67,7 +67,7 @@ async function getStreamUrl(trackId, title = '', artist = '') {
     const searchRes = await api.search(query);
     const song = searchRes.find(r => (r.type === 'SONG' || r.type === 'VIDEO') && r.videoId);
     if (song && song.videoId && song.videoId !== resolvedId) {
-      const ytDlpCmd = `yt-dlp -g -f "bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio/ba/b" "https://www.youtube.com/watch?v=${song.videoId}"`;
+      const ytDlpCmd = `yt-dlp -g --extractor-args "youtube:client=android" -f "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/ba/b" "https://www.youtube.com/watch?v=${song.videoId}"`;
       const { stdout } = await execAsync(ytDlpCmd);
       const streamUrl = stdout.trim().split("\n")[0];
       if (streamUrl && streamUrl.startsWith("http")) {
@@ -551,7 +551,7 @@ function extractArtist(song, fallback = "Unknown Artist") {
           
           if (isRealId) {
             try {
-              const dlCmd = `yt-dlp -f "bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio/ba/b" --no-playlist -o "${outputTemplate}" "https://www.youtube.com/watch?v=${trackId}"`;
+              const dlCmd = `yt-dlp -f "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/ba/b" --no-playlist -o "${outputTemplate}" "https://www.youtube.com/watch?v=${trackId}"`;
               await execAsync(dlCmd);
               downloadSuccess = true;
             } catch (dlErr) {
@@ -561,7 +561,7 @@ function extractArtist(song, fallback = "Unknown Artist") {
 
           if (!downloadSuccess) {
             const query = `${cleanArtist} ${cleanTitle}`.trim() || 'music';
-            const dlFallbackCmd = `yt-dlp -f "bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio/ba/b" --no-playlist -o "${outputTemplate}" "ytsearch1:${query.replace(/"/g, '')}"`;
+            const dlFallbackCmd = `yt-dlp -f "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/ba/b" --no-playlist -o "${outputTemplate}" "ytsearch1:${query.replace(/"/g, '')}"`;
             await execAsync(dlFallbackCmd);
           }
 
