@@ -1,23 +1,29 @@
-FROM oven/bun:1 as base
+# Use the official Bun image
+FROM oven/bun:1
 
-# Install Python, curl, and yt-dlp
-RUN apt-get update && apt-get install -y python3 curl && \
-    curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
-    chmod a+rx /usr/local/bin/yt-dlp && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+# Install Python (required by yt-dlp) and curl
+RUN apt-get update && apt-get install -y python3 curl && rm -rf /var/lib/apt/lists/*
 
-# Set up app directory and permissions for Hugging Face (often runs as user 1000)
+# Download and install the latest yt-dlp binary
+RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp
+RUN chmod a+rx /usr/local/bin/yt-dlp
+
+# Set up the working directory
 WORKDIR /app
-RUN chown -R 1000:1000 /app
 
-COPY package*.json ./
-# Install dependencies if package.json exists
-RUN bun install || true 
+# Copy package files and install dependencies
+COPY package.json bun.lockb* ./
+RUN bun install
 
-COPY youtube-proxy.js ./
+# Copy all project files
+COPY . .
 
-# Hugging Face Spaces require port 7860
-EXPOSE 7860
-ENV PORT=7860
+# Ensure the download directory exists with correct permissions
+RUN mkdir -p /app/Music/Horizon
+RUN chmod -R 777 /app/Music
 
+# Expose the port Koyeb will route to
+EXPOSE 8000
+
+# Start the proxy server
 CMD ["bun", "run", "youtube-proxy.js"]
