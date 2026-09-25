@@ -29,6 +29,38 @@ YDL_EXTRACTOR_ARGS = {
     }
 }
 
+def get_cookie_file():
+    # 1. Environment variable YOUTUBE_COOKIES (configured on Render dashboard)
+    env_cookies = os.environ.get("YOUTUBE_COOKIES")
+    if env_cookies and env_cookies.strip():
+        tmp_cookie_path = "/tmp/youtube_cookies.txt"
+        try:
+            with open(tmp_cookie_path, "w", encoding="utf-8") as f:
+                f.write(env_cookies.strip())
+            return tmp_cookie_path
+        except Exception:
+            pass
+    
+    # 2. Local cookies file in project root
+    for candidate in ["cookies.txt", "www.youtube.com_cookies.txt"]:
+        if os.path.exists(candidate):
+            return candidate
+    return None
+
+def get_ydl_opts(extra_opts=None):
+    opts = {
+        'format': 'bestaudio[ext=m4a]/bestaudio/best',
+        'quiet': True,
+        'no_warnings': True,
+        'extractor_args': YDL_EXTRACTOR_ARGS,
+    }
+    cfile = get_cookie_file()
+    if cfile:
+        opts['cookiefile'] = cfile
+    if extra_opts:
+        opts.update(extra_opts)
+    return opts
+
 @app.api_route("/search", methods=["GET", "HEAD"])
 def search(q: str):
     try:
@@ -70,13 +102,7 @@ def charts():
 def get_url(id: str):
     if not id:
         return JSONResponse(content={"error": "Missing id"}, status_code=400)
-    ydl_opts = {
-        'format': 'bestaudio[ext=m4a]/bestaudio/best',
-        'quiet': True,
-        'no_warnings': True,
-        'simulate': True,
-        'extractor_args': YDL_EXTRACTOR_ARGS,
-    }
+    ydl_opts = get_ydl_opts({'simulate': True})
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"https://www.youtube.com/watch?v={id}", download=False)
@@ -89,13 +115,7 @@ async def stream(id: str, request: Request):
     if not id:
         return JSONResponse(content={"error": "Missing id"}, status_code=400)
     
-    ydl_opts = {
-        'format': 'bestaudio[ext=m4a]/bestaudio/best',
-        'quiet': True,
-        'no_warnings': True,
-        'simulate': True,
-        'extractor_args': YDL_EXTRACTOR_ARGS,
-    }
+    ydl_opts = get_ydl_opts({'simulate': True})
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"https://www.youtube.com/watch?v={id}", download=False)
@@ -151,13 +171,7 @@ def download(id: str, title: str = "", artist: str = "", image: str = "", saveOf
     os.makedirs(DOWNLOAD_DIR, exist_ok=True)
     out_template = os.path.join(DOWNLOAD_DIR, f"{id}.%(ext)s")
     
-    ydl_opts = {
-        'format': 'bestaudio[ext=m4a]/bestaudio/best',
-        'outtmpl': out_template,
-        'quiet': True,
-        'no_warnings': True,
-        'extractor_args': YDL_EXTRACTOR_ARGS,
-    }
+    ydl_opts = get_ydl_opts({'outtmpl': out_template})
     
     try:
         existing_file = None
