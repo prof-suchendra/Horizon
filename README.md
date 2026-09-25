@@ -46,3 +46,4 @@ npm start
 - **Proxy Error / Audio not loading**: Make sure `yt-dlp` is installed and accessible in your system's PATH. YouTube frequently changes its extraction logic, so keep `yt-dlp` updated: `pip install -U yt-dlp --break-system-packages`.
 - **EADDRINUSE (Port 8000)**: The app runs a local proxy on port `8000`. Ensure no other application is using this port before starting the app.
 # Horizon
+# Horizon
