@@ -13,7 +13,7 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "electron": "^44.4.3"
+    "electron": "^44.4.5"
   },
   "dependencies": {
     "ytmusic-api": "^5.3.1"

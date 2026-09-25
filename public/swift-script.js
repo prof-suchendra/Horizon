@@ -144,9 +144,9 @@ const audio = document.getElementById('audioPlayer');
 
 // State
 // --- API CONFIGURATION ---
-// Set this to your deployed public URL when shipping the APK
-const ENV = 'prod'; // Change to 'prod'
-const PROXY_URL = ENV === 'prod' ? 'https://ssdas001-horizon.hf.space' : 'http://localhost:8000';
+// Set to 'dev' for local backend (localhost:8000) or 'prod' for deployed proxy
+const ENV = 'dev';
+const PROXY_URL = ENV === 'prod' ? 'https://horizon-youtube-proxy.onrender.com' : 'http://localhost:8000';
 let queue = [];
 let currentIndex = -1;
 let isPlaying = false;
@@ -1350,16 +1350,7 @@ async function executeSearch(query) {
         }, 3000);
         
         console.log("DEBUG: Calling URL:", fetchUrl);
-        let res;
-        for (let attempt = 0; attempt < 3; attempt++) {
-            res = await fetch(fetchUrl);
-            if (res.status === 429) {
-                console.warn("Rate limited (429), retrying in 2s...");
-                await new Promise(r => setTimeout(r, 2000));
-                continue;
-            }
-            break;
-        }
+        const res = await fetch(fetchUrl);
         clearTimeout(coldStartTimer);
 
         if (!res.ok) throw new Error("Search request failed");
@@ -1527,7 +1518,7 @@ function renderResults(results) {
 let currentSongCompletedPlayRecorded = false;
 let lastTrackedTimestamp = 0;
 
-async function playSong(idx) {
+function playSong(idx) {
     if (!queue[idx]) return;
     currentIndex = idx;
     const song = queue[currentIndex];
@@ -1539,31 +1530,17 @@ async function playSong(idx) {
     if (downloaded) {
         song.isDownloaded = true;
         song.offlinePath = downloaded.offlinePath;
-        song.streamUrl = 'file://' + downloaded.offlinePath;
+        if (true) {
+            song.streamUrl = 'file://' + downloaded.offlinePath;
+        } else {
+            song.streamUrl = `${PROXY_URL}/offline-stream?id=${encodeURIComponent(song.id)}`;
+        }
     } else if (song.offlinePath) {
         song.streamUrl = 'file://' + song.offlinePath;
+    } else if (song.isDownloaded && (!song.streamUrl || song.streamUrl.startsWith('file://'))) {
+        song.streamUrl = `${PROXY_URL}/offline-stream?id=${encodeURIComponent(song.id)}`;
     } else {
-        // Fetch direct googlevideo URL to bypass proxy streaming limits
-        try {
-            let res;
-            for (let attempt = 0; attempt < 3; attempt++) {
-                res = await fetch(`${PROXY_URL}/api/get-url?id=${encodeURIComponent(song.id)}`);
-                if (res.status === 429) {
-                    console.warn("Rate limited (429), retrying in 1.5s...");
-                    await new Promise(r => setTimeout(r, 1500));
-                    continue;
-                }
-                break;
-            }
-            const data = await res.json();
-            if (data.url) {
-                song.streamUrl = data.url;
-            } else {
-                song.streamUrl = `${PROXY_URL}/stream?id=${encodeURIComponent(song.id)}`; // fallback
-            }
-        } catch(e) {
-            song.streamUrl = `${PROXY_URL}/stream?id=${encodeURIComponent(song.id)}`; // fallback
-        }
+        song.streamUrl = `${PROXY_URL}/stream?id=${encodeURIComponent(song.id)}&title=${encodeURIComponent(song.title || '')}&artist=${encodeURIComponent(song.artist || '')}`;
     }
 
     audio.src = song.streamUrl;
@@ -1572,7 +1549,7 @@ async function playSong(idx) {
         updatePlayIcons();
     }).catch(err => {
         console.warn("Autoplay error or stream failure:", err);
-        showToast("Playback failed to start.");
+        showToast("Playback started (or click to resume)");
     });
     
     isPlaying = true;
@@ -2638,15 +2615,20 @@ window.addEventListener('keydown', (e) => {
 
 // Startup Initialization
 function initializeApp() {
+    if (window.__appInitialized) return;
+    window.__appInitialized = true;
     console.log("[App] Initialization started");
     
-    // ALWAYS hide splash screen immediately, regardless of subsequent errors
-    const splash = document.getElementById("splash-screen");
-    if(splash) {
-        console.log("[App] Hiding splash screen");
-        splash.classList.add("hidden");
-        setTimeout(() => splash.style.display = "none", 500);
-    }
+    // Dismiss splash screen immediately
+    const hideSplash = () => {
+        const splash = document.getElementById("splash-screen");
+        if (splash) {
+            console.log("[App] Hiding splash screen");
+            splash.classList.add("hidden");
+            setTimeout(() => { splash.style.display = "none"; }, 500);
+        }
+    };
+    hideSplash();
 
     try {
         syncOfflineDownloadsWithBackend();
@@ -2667,41 +2649,39 @@ function initializeApp() {
         if (typeof setTheme === 'function') {
             setTheme(savedTheme);
         }
-    } catch(e) {
-        console.error("[App] Error during initialization logic:", e);
+    } catch (e) {
+        console.error("[App] Initialization non-critical error:", e);
     }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-    console.log("[App] DOMContentLoaded fired");
-    if (window.cordova) {
-        console.log("[App] Cordova detected, waiting for deviceready");
-        document.addEventListener("deviceready", () => {
-            console.log("[App] deviceready fired");
-            initializeApp();
-        }, false);
-        
-        // Fallback in case deviceready gets lost (happens in some webviews)
-        setTimeout(() => {
-            if(!window.__appInitialized) {
-                console.log("[App] deviceready timeout fallback!");
-                initializeApp();
-            }
-        }, 8000);
-    } else {
-        console.log("[App] Browser mode detected, initializing immediately");
-        initializeApp();
-    }
-});
-
 // Guard flag
 window.__appInitialized = false;
-const oldInit = initializeApp;
-initializeApp = function() {
-    if(window.__appInitialized) return;
-    window.__appInitialized = true;
-    oldInit();
-};
+
+// Trigger initialization whether DOM is still loading or already complete
+if (document.readyState === 'loading') {
+    document.addEventListener("DOMContentLoaded", () => {
+        console.log("[App] DOMContentLoaded fired");
+        if (window.cordova) {
+            document.addEventListener("deviceready", initializeApp, false);
+            setTimeout(initializeApp, 3000);
+        } else {
+            initializeApp();
+        }
+    });
+} else {
+    console.log("[App] Document already ready, initializing immediately");
+    initializeApp();
+}
+
+// Global safety timeout to always dismiss splash screen
+setTimeout(() => {
+    const splash = document.getElementById("splash-screen");
+    if (splash && !splash.classList.contains("hidden")) {
+        console.log("[App] Safety timeout dismissing splash screen");
+        splash.classList.add("hidden");
+        setTimeout(() => { splash.style.display = "none"; }, 500);
+    }
+}, 2000);
 
 function downloadCurrentSong() {
     if (currentIndex < 0 || !queue[currentIndex]) {
@@ -2740,5 +2720,4 @@ window.addEventListener('online', () => {
         loadCharts(); // Will load actual charts
     }
 });
-
 

@@ -29,6 +29,7 @@ app.whenReady().then(() => {
   
   proxyProcess.stdout.on('data', (data) => console.log(`Proxy: ${data}`));
   proxyProcess.stderr.on('data', (data) => console.error(`Proxy Error: ${data}`));
+  proxyProcess.on('error', (err) => console.log('Proxy background spawn notice (safe to ignore if running python backend):', err.message));
 
   createWindow()
 

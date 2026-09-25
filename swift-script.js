@@ -144,8 +144,8 @@ const audio = document.getElementById('audioPlayer');
 
 // State
 // --- API CONFIGURATION ---
-// Set this to your deployed public URL when shipping the APK
-const ENV = 'prod'; // Change to 'prod'
+// Set to 'dev' for local backend (localhost:8000) or 'prod' for deployed proxy
+const ENV = 'dev';
 const PROXY_URL = ENV === 'prod' ? 'https://horizon-youtube-proxy.onrender.com' : 'http://localhost:8000';
 let queue = [];
 let currentIndex = -1;
@@ -2615,63 +2615,73 @@ window.addEventListener('keydown', (e) => {
 
 // Startup Initialization
 function initializeApp() {
+    if (window.__appInitialized) return;
+    window.__appInitialized = true;
     console.log("[App] Initialization started");
-    syncOfflineDownloadsWithBackend();
-    renderLibrary();
-    loadHomeContent();
-    updateLibraryBadges();
     
-    // Add event listeners
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-    });
-    
-    // Auto-update charts periodically
-    setInterval(loadHomeContent, 600000); 
-    
-    // Theme setup
-    const savedTheme = localStorage.getItem('theme') || 'system';
-    setTheme(savedTheme);
+    // Dismiss splash screen immediately
+    const hideSplash = () => {
+        const splash = document.getElementById("splash-screen");
+        if (splash) {
+            console.log("[App] Hiding splash screen");
+            splash.classList.add("hidden");
+            setTimeout(() => { splash.style.display = "none"; }, 500);
+        }
+    };
+    hideSplash();
 
-    // Hide splash screen immediately after init is done
-    const splash = document.getElementById("splash-screen");
-    if(splash) {
-        console.log("[App] Hiding splash screen");
-        splash.classList.add("hidden");
-        setTimeout(() => splash.style.display = "none", 500);
+    try {
+        syncOfflineDownloadsWithBackend();
+        renderLibrary();
+        loadHomeContent();
+        updateLibraryBadges();
+        
+        // Add event listeners
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+        });
+        
+        // Auto-update charts periodically
+        setInterval(loadHomeContent, 600000); 
+        
+        // Theme setup
+        const savedTheme = localStorage.getItem('theme') || 'system';
+        if (typeof setTheme === 'function') {
+            setTheme(savedTheme);
+        }
+    } catch (e) {
+        console.error("[App] Initialization non-critical error:", e);
     }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-    console.log("[App] DOMContentLoaded fired");
-    if (window.cordova) {
-        console.log("[App] Cordova detected, waiting for deviceready");
-        document.addEventListener("deviceready", () => {
-            console.log("[App] deviceready fired");
-            initializeApp();
-        }, false);
-        
-        // Fallback in case deviceready gets lost (happens in some webviews)
-        setTimeout(() => {
-            if(!window.__appInitialized) {
-                console.log("[App] deviceready timeout fallback!");
-                initializeApp();
-            }
-        }, 8000);
-    } else {
-        console.log("[App] Browser mode detected, initializing immediately");
-        initializeApp();
-    }
-});
-
 // Guard flag
 window.__appInitialized = false;
-const oldInit = initializeApp;
-initializeApp = function() {
-    if(window.__appInitialized) return;
-    window.__appInitialized = true;
-    oldInit();
-};
+
+// Trigger initialization whether DOM is still loading or already complete
+if (document.readyState === 'loading') {
+    document.addEventListener("DOMContentLoaded", () => {
+        console.log("[App] DOMContentLoaded fired");
+        if (window.cordova) {
+            document.addEventListener("deviceready", initializeApp, false);
+            setTimeout(initializeApp, 3000);
+        } else {
+            initializeApp();
+        }
+    });
+} else {
+    console.log("[App] Document already ready, initializing immediately");
+    initializeApp();
+}
+
+// Global safety timeout to always dismiss splash screen
+setTimeout(() => {
+    const splash = document.getElementById("splash-screen");
+    if (splash && !splash.classList.contains("hidden")) {
+        console.log("[App] Safety timeout dismissing splash screen");
+        splash.classList.add("hidden");
+        setTimeout(() => { splash.style.display = "none"; }, 500);
+    }
+}, 2000);
 
 function downloadCurrentSong() {
     if (currentIndex < 0 || !queue[currentIndex]) {

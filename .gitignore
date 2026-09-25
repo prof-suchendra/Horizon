@@ -2,8 +2,11 @@
 horizonApp/
 *.apk
 
-# Exclude node_modules
+# Exclude node_modules & python venv
 node_modules/
+venv/
+__pycache__/
+*.pyc
 
 # Exclude temp files from debugging
 *.patch
@@ -11,3 +14,6 @@ patch_*.js
 setup_env.sh
 build_apk.sh
 temp_*
+*.log
+.agent/
+.gemini/
