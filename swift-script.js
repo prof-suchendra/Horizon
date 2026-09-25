@@ -146,7 +146,7 @@ const audio = document.getElementById('audioPlayer');
 // --- API CONFIGURATION ---
 // Set to 'dev' for local backend (localhost:8000) or 'prod' for deployed proxy
 const ENV = 'prod';
-const PROXY_URL = ENV === 'prod' ? 'https://horizon-dgsc.onrender.com' : 'http://localhost:8000';
+const PROXY_URL = ENV === 'prod' ? 'https://horizon-k6ec.onrender.com' : 'http://localhost:8000';
 let queue = [];
 let currentIndex = -1;
 let isPlaying = false;
