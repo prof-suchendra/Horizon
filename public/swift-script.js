@@ -145,8 +145,8 @@ const audio = document.getElementById('audioPlayer');
 // State
 // --- API CONFIGURATION ---
 // Set to 'dev' for local backend (localhost:8000) or 'prod' for deployed proxy
-const ENV = 'dev';
-const PROXY_URL = ENV === 'prod' ? 'https://horizon-youtube-proxy.onrender.com' : 'http://localhost:8000';
+const ENV = 'prod';
+const PROXY_URL = ENV === 'prod' ? 'https://horizon-dgsc.onrender.com' : 'http://localhost:8000';
 let queue = [];
 let currentIndex = -1;
 let isPlaying = false;
