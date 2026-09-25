@@ -47,3 +47,4 @@ npm start
 - **EADDRINUSE (Port 8000)**: The app runs a local proxy on port `8000`. Ensure no other application is using this port before starting the app.
 # Horizon
 # Horizon
+# Horizon
