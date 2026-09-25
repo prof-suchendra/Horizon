@@ -1,8 +1,9 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, RedirectResponse, FileResponse
+from fastapi.responses import JSONResponse, RedirectResponse, FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from ytmusicapi import YTMusic
 import yt_dlp
+import httpx
 import os
 import json
 
@@ -20,7 +21,15 @@ DOWNLOAD_DIR = os.path.expanduser("~/Music/Horizon")
 MANIFEST_PATH = os.path.join(DOWNLOAD_DIR, "downloads.json")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-@app.get("/search")
+# Shared yt-dlp options configured to bypass YouTube cloud bot detection
+YDL_EXTRACTOR_ARGS = {
+    'youtube': {
+        'player_client': ['android', 'ios', 'mweb'],
+        'player_skip': ['webpage', 'configs', 'js'],
+    }
+}
+
+@app.api_route("/search", methods=["GET", "HEAD"])
 def search(q: str):
     try:
         results = yt.search(q, filter="songs")
@@ -36,7 +45,7 @@ def search(q: str):
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
-@app.get("/charts")
+@app.api_route("/charts", methods=["GET", "HEAD"])
 def charts():
     try:
         charts_data = yt.get_charts(country="IN")
@@ -57,7 +66,7 @@ def charts():
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
-@app.get("/api/get-url")
+@app.api_route("/api/get-url", methods=["GET", "HEAD"])
 def get_url(id: str):
     if not id:
         return JSONResponse(content={"error": "Missing id"}, status_code=400)
@@ -66,6 +75,7 @@ def get_url(id: str):
         'quiet': True,
         'no_warnings': True,
         'simulate': True,
+        'extractor_args': YDL_EXTRACTOR_ARGS,
     }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -74,23 +84,66 @@ def get_url(id: str):
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
 
-@app.get("/stream")
-def stream(id: str):
+@app.api_route("/stream", methods=["GET", "HEAD"])
+async def stream(id: str, request: Request):
     if not id:
         return JSONResponse(content={"error": "Missing id"}, status_code=400)
+    
     ydl_opts = {
         'format': 'bestaudio[ext=m4a]/bestaudio/best',
         'quiet': True,
+        'no_warnings': True,
         'simulate': True,
+        'extractor_args': YDL_EXTRACTOR_ARGS,
     }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(f"https://www.youtube.com/watch?v={id}", download=False)
-            return RedirectResponse(info.get("url"))
+            media_url = info.get("url")
+            
+        if not media_url:
+            return JSONResponse(content={"error": "Stream URL could not be resolved"}, status_code=500)
+        
+        if request.method == "HEAD":
+            return JSONResponse(content={"status": "ready"})
+            
+        # Stream the audio chunks directly through proxy
+        client = httpx.AsyncClient(follow_redirects=True, timeout=60.0)
+        req_headers = {}
+        if "range" in request.headers:
+            req_headers["Range"] = request.headers["range"]
+            
+        audio_req = client.build_request("GET", media_url, headers=req_headers)
+        audio_res = await client.send(audio_req, stream=True)
+        
+        async def stream_generator():
+            try:
+                async for chunk in audio_res.aiter_bytes():
+                    yield chunk
+            finally:
+                await audio_res.aclose()
+                await client.aclose()
+                
+        response_headers = {
+            "Accept-Ranges": "bytes",
+            "Content-Type": audio_res.headers.get("content-type", "audio/mp4"),
+            "Access-Control-Allow-Origin": "*",
+        }
+        if "content-length" in audio_res.headers:
+            response_headers["Content-Length"] = audio_res.headers["content-length"]
+        if "content-range" in audio_res.headers:
+            response_headers["Content-Range"] = audio_res.headers["content-range"]
+            
+        return StreamingResponse(
+            stream_generator(),
+            status_code=audio_res.status_code,
+            headers=response_headers,
+            media_type=audio_res.headers.get("content-type", "audio/mp4")
+        )
     except Exception as e:
         return JSONResponse(content={"error": f"Extraction failed: {str(e)}"}, status_code=500)
 
-@app.get("/download")
+@app.api_route("/download", methods=["GET", "HEAD"])
 def download(id: str, title: str = "", artist: str = "", image: str = "", saveOffline: bool = True):
     if not id:
         return JSONResponse(content={"success": False, "error": "Missing id"}, status_code=400)
@@ -103,6 +156,7 @@ def download(id: str, title: str = "", artist: str = "", image: str = "", saveOf
         'outtmpl': out_template,
         'quiet': True,
         'no_warnings': True,
+        'extractor_args': YDL_EXTRACTOR_ARGS,
     }
     
     try:
@@ -151,7 +205,7 @@ def download(id: str, title: str = "", artist: str = "", image: str = "", saveOf
     except Exception as e:
         return JSONResponse(content={"success": False, "error": str(e)}, status_code=500)
 
-@app.get("/offline-stream")
+@app.api_route("/offline-stream", methods=["GET", "HEAD"])
 def offline_stream(id: str):
     if not id:
         return JSONResponse(content={"error": "Missing id"}, status_code=400)
@@ -161,7 +215,7 @@ def offline_stream(id: str):
             return FileResponse(fpath)
     return JSONResponse(content={"error": "File not found"}, status_code=404)
 
-@app.get("/api/downloads")
+@app.api_route("/api/downloads", methods=["GET", "HEAD"])
 def get_downloads():
     if os.path.exists(MANIFEST_PATH):
         try:
