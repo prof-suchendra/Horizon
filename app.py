@@ -30,7 +30,25 @@ YDL_EXTRACTOR_ARGS = {
 }
 
 def get_cookie_file():
-    # 1. Environment variable YOUTUBE_COOKIES (configured on Render dashboard)
+    # 1. Render Secret File feature (/etc/secrets/cookies.txt)
+    render_secret_path = "/etc/secrets/cookies.txt"
+    if os.path.exists(render_secret_path):
+        return render_secret_path
+
+    # 2. Base64-encoded environment variable (YOUTUBE_COOKIES_BASE64)
+    b64_cookies = os.environ.get("YOUTUBE_COOKIES_BASE64")
+    if b64_cookies and b64_cookies.strip():
+        import base64
+        tmp_cookie_path = "/tmp/youtube_cookies.txt"
+        try:
+            decoded = base64.b64decode(b64_cookies.strip()).decode("utf-8")
+            with open(tmp_cookie_path, "w", encoding="utf-8") as f:
+                f.write(decoded)
+            return tmp_cookie_path
+        except Exception as e:
+            print("Failed to decode YOUTUBE_COOKIES_BASE64:", e)
+
+    # 3. Plain environment variable YOUTUBE_COOKIES
     env_cookies = os.environ.get("YOUTUBE_COOKIES")
     if env_cookies and env_cookies.strip():
         tmp_cookie_path = "/tmp/youtube_cookies.txt"
@@ -41,7 +59,7 @@ def get_cookie_file():
         except Exception:
             pass
     
-    # 2. Local cookies file in project root
+    # 4. Local cookies file in project root
     for candidate in ["cookies.txt", "www.youtube.com_cookies.txt"]:
         if os.path.exists(candidate):
             return candidate
