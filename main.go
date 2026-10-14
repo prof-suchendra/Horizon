@@ -3,10 +3,13 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
+	"math"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -72,6 +75,40 @@ type cacheItem struct {
 	expiresAt time.Time
 }
 
+// Fallback extractor clients for Render when datacenter IP triggers a 429/bot block
+var fallbackClients = []string{
+	"android",
+	"ios",
+	"web_creator",
+	"mweb",
+	"",
+}
+
+// locateCookiesFile verifies if Render mounted the secret file or uses a local fallback
+func locateCookiesFile() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		home = "."
+	}
+	candidates := []string{
+		os.Getenv("YOUTUBE_COOKIES_PATH"),
+		"/etc/secrets/youtube_cookies.txt", // Default Render Secret File path
+		"/etc/secrets/cookies.txt",
+		"/etc/horizon/cookies.txt",
+		filepath.Join(home, "Music", "Horizon", "cookies.txt"),
+		filepath.Join(home, "Music", "Horizon", "yt_cookies.json"),
+		"cookies.txt",
+	}
+	for _, c := range candidates {
+		if c != "" {
+			if _, err := os.Stat(c); err == nil {
+				return c
+			}
+		}
+	}
+	return ""
+}
+
 func init() {
 	home, err := os.UserHomeDir()
 	if err != nil {
@@ -81,19 +118,11 @@ func init() {
 	manifestDir = filepath.Join(musicDir, "downloads.json")
 	_ = os.MkdirAll(musicDir, 0755)
 
-	// Check for cookies file to prevent HTTP 429 bot-detection on cloud datacenter IPs
-	candidates := []string{
-		"cookies.txt",
-		filepath.Join(home, "Music", "Horizon", "cookies.txt"),
-		filepath.Join(home, "Music", "Horizon", "yt_cookies.json"),
-		"/etc/horizon/cookies.txt",
-	}
-	for _, c := range candidates {
-		if _, err := os.Stat(c); err == nil {
-			cookiesFile = c
-			log.Printf("[Horizon Backend] Using cookies file for YouTube auth: %s", c)
-			break
-		}
+	cookiesFile = locateCookiesFile()
+	if cookiesFile != "" {
+		log.Printf("[Horizon Backend] YouTube cookies active from: %s", cookiesFile)
+	} else {
+		log.Printf("[Horizon Backend] Running without cookies (use Render Secret File 'youtube_cookies.txt' if 429 occurs)")
 	}
 }
 
@@ -389,6 +418,55 @@ func handleCharts(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(SearchResponse{Results: results})
 }
 
+// runYtDlpExtraction executes yt-dlp for a given client and cookies configuration
+func runYtDlpExtraction(ctx context.Context, videoID, client, cookiePath string) (string, error) {
+	ytDlp := getYtDlpPath()
+	nodePath := getNodePath()
+
+	args := []string{
+		"-f", "bestaudio[ext=m4a]/bestaudio/best",
+		"-g",
+		"--quiet",
+		"--no-warnings",
+		"--no-check-certificates",
+	}
+
+	if cookiePath != "" {
+		args = append(args, "--cookies", cookiePath)
+	}
+
+	if client != "" {
+		args = append(args, "--extractor-args", fmt.Sprintf("youtube:player_client=%s", client))
+	}
+
+	if nodePath != "" {
+		args = append(args, "--js-runtimes", fmt.Sprintf("node:%s", nodePath))
+	}
+
+	args = append(args, fmt.Sprintf("https://www.youtube.com/watch?v=%s", videoID))
+
+	cmd := exec.CommandContext(ctx, ytDlp, args...)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		return "", fmt.Errorf("cmd failed: %w | stderr: %s", err, strings.TrimSpace(stderr.String()))
+	}
+
+	streamURL := strings.TrimSpace(stdout.String())
+	if streamURL == "" {
+		return "", fmt.Errorf("empty stream url returned")
+	}
+
+	// Multiple lines can be returned if video has multiple formats; take the first audio URL
+	lines := strings.Split(streamURL, "\n")
+	firstURL := strings.TrimSpace(lines[0])
+	return firstURL, nil
+}
+
+// extractStreamURL resolves audio stream URL with caching, client rotation, and exponential backoff
 func extractStreamURL(id string) (string, error) {
 	cacheMu.RLock()
 	if item, ok := streamCache[id]; ok && time.Now().Before(item.expiresAt) {
@@ -400,60 +478,69 @@ func extractStreamURL(id string) (string, error) {
 	procSem <- struct{}{}
 	defer func() { <-procSem }()
 
-	ytDlp := getYtDlpPath()
-	nodePath := getNodePath()
+	cookiePath := locateCookiesFile()
+	maxRetries := len(fallbackClients)
+	var lastErr error
 
-	args := []string{
-		"--quiet",
-		"--no-warnings",
-		"-g",
-		"-f", "bestaudio[ext=m4a]/bestaudio/best",
-	}
-	if cookiesFile != "" {
-		args = append(args, "--cookies", cookiesFile)
-	}
-	if nodePath != "" {
-		args = append(args, "--js-runtimes", fmt.Sprintf("node:%s", nodePath))
-	}
-	args = append(args, fmt.Sprintf("https://www.youtube.com/watch?v=%s", id))
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		targetClient := fallbackClients[attempt]
 
-	cmd := exec.Command(ytDlp, args...)
-	out, err := cmd.Output()
-	if err != nil {
-		return "", err
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		url, err := runYtDlpExtraction(ctx, id, targetClient, cookiePath)
+		cancel()
+
+		if err == nil && url != "" {
+			cacheMu.Lock()
+			pruneStreamCacheLocked()
+			streamCache[id] = cacheItem{
+				url:       url,
+				expiresAt: time.Now().Add(4 * time.Hour),
+			}
+			cacheMu.Unlock()
+			return url, nil
+		}
+
+		lastErr = err
+		errStr := strings.ToLower(err.Error())
+
+		// Check for rate-limiting, sign-in, or bot detection signals
+		isBlocked := strings.Contains(errStr, "429") ||
+			strings.Contains(errStr, "too many requests") ||
+			strings.Contains(errStr, "bot") ||
+			strings.Contains(errStr, "sign in to confirm")
+
+		if !isBlocked && attempt > 0 {
+			break
+		}
+
+		// Jittered exponential backoff: (base * 2^attempt) + jitter
+		backoff := time.Duration(math.Pow(2, float64(attempt))) * time.Second
+		jitter := time.Duration(rand.Intn(500)) * time.Millisecond
+		sleepDuration := backoff + jitter
+
+		log.Printf("[Warn] yt-dlp attempt %d failed for %s (client: '%s'): %v. Retrying in %v...",
+			attempt+1, id, targetClient, err, sleepDuration)
+
+		time.Sleep(sleepDuration)
 	}
 
-	streamURL := strings.TrimSpace(string(out))
-	if streamURL == "" {
-		return "", fmt.Errorf("empty stream url returned")
-	}
-
-	// Multiple lines can be returned if video has multiple formats; take the first audio URL
-	lines := strings.Split(streamURL, "\n")
-	firstURL := strings.TrimSpace(lines[0])
-
-	cacheMu.Lock()
-	pruneStreamCacheLocked()
-	streamCache[id] = cacheItem{
-		url:       firstURL,
-		expiresAt: time.Now().Add(4 * time.Hour),
-	}
-	cacheMu.Unlock()
-
-	return firstURL, nil
+	return "", fmt.Errorf("extraction exhausted after retries: %w", lastErr)
 }
 
 func handleStream(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimSpace(r.URL.Query().Get("id"))
 	if id == "" {
-		http.Error(w, `{"error":"Missing id"}`, http.StatusBadRequest)
+		id = strings.TrimSpace(r.URL.Query().Get("v"))
+	}
+	if id == "" {
+		http.Error(w, `{"error":"Missing 'id' or 'v' query parameter"}`, http.StatusBadRequest)
 		return
 	}
 
 	streamURL, err := extractStreamURL(id)
 	if err != nil {
 		log.Printf("Stream error for %s: %v", id, err)
-		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err.Error()), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf(`{"error":"%s"}`, err.Error()), http.StatusTooManyRequests)
 		return
 	}
 
@@ -467,7 +554,7 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 	// This solves the fatal issue where googlevideo.com URLs are IP-bound to Render's datacenter
 	// and rejected with HTTP 403 Forbidden or CORS blocked when accessed by client browser.
 	client := &http.Client{
-		Timeout: 2 * time.Minute,
+		Timeout: 0, // No overall timeout; streaming can be arbitrarily long
 	}
 
 	proxyReq, err := http.NewRequestWithContext(r.Context(), r.Method, streamURL, nil)
@@ -494,6 +581,7 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Range, Content-Type, Accept")
+	w.Header().Set("Access-Control-Expose-Headers", "Content-Range, Content-Length, Accept-Ranges")
 	w.Header().Set("Accept-Ranges", "bytes")
 
 	if cType := resp.Header.Get("Content-Type"); cType != "" {
