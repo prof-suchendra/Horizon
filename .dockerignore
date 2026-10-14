@@ -1,0 +1,6 @@
+node_modules/
+horizon-backend
+*.apk
+*.log
+Music/
+.git
