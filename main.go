@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -456,7 +457,61 @@ func handleStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, streamURL, http.StatusTemporaryRedirect)
+	// Option A: If client requested raw URL redirect via ?redirect=true
+	if r.URL.Query().Get("redirect") == "true" {
+		http.Redirect(w, r, streamURL, http.StatusTemporaryRedirect)
+		return
+	}
+
+	// Option B: Stream audio bytes through proxy with full Range support
+	// This solves the fatal issue where googlevideo.com URLs are IP-bound to Render's datacenter
+	// and rejected with HTTP 403 Forbidden or CORS blocked when accessed by client browser.
+	client := &http.Client{
+		Timeout: 2 * time.Minute,
+	}
+
+	proxyReq, err := http.NewRequestWithContext(r.Context(), r.Method, streamURL, nil)
+	if err != nil {
+		http.Redirect(w, r, streamURL, http.StatusTemporaryRedirect)
+		return
+	}
+
+	// Forward Range header if client requests seeking/scrubbing
+	if rangeHdr := r.Header.Get("Range"); rangeHdr != "" {
+		proxyReq.Header.Set("Range", rangeHdr)
+	}
+	proxyReq.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+
+	resp, err := client.Do(proxyReq)
+	if err != nil {
+		log.Printf("Proxy stream request failed, falling back to redirect: %v", err)
+		http.Redirect(w, r, streamURL, http.StatusTemporaryRedirect)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Forward response headers with full CORS and seeking headers
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Range, Content-Type, Accept")
+	w.Header().Set("Accept-Ranges", "bytes")
+
+	if cType := resp.Header.Get("Content-Type"); cType != "" {
+		w.Header().Set("Content-Type", cType)
+	} else {
+		w.Header().Set("Content-Type", "audio/mp4")
+	}
+	if cLen := resp.Header.Get("Content-Length"); cLen != "" {
+		w.Header().Set("Content-Length", cLen)
+	}
+	if cRange := resp.Header.Get("Content-Range"); cRange != "" {
+		w.Header().Set("Content-Range", cRange)
+	}
+
+	w.WriteHeader(resp.StatusCode)
+	if r.Method != http.MethodHead {
+		io.Copy(w, resp.Body)
+	}
 }
 
 func handleGetURL(w http.ResponseWriter, r *http.Request) {

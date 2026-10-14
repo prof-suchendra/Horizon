@@ -2041,8 +2041,24 @@ audio.addEventListener('pause', () => {
     lastTrackedTimestamp = 0;
 });
 
-audio.addEventListener('play', () => {
-    lastTrackedTimestamp = Math.floor(Date.now() / 1000);
+audio.addEventListener('error', (e) => {
+    console.error("[Audio Player Error]", e, audio.error);
+    const song = queue[currentIndex];
+    if (song && !song._retryAttempted) {
+        song._retryAttempted = true;
+        console.log("[Audio Player] Retrying stream with direct url fallback for:", song.id);
+        fetch(`${PROXY_URL}/api/get-url?id=${encodeURIComponent(song.id)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.url) {
+                    audio.src = data.url;
+                    audio.play().catch(() => {});
+                }
+            })
+            .catch(() => {});
+    } else {
+        showToast("Audio stream error. Reconnecting to backend...");
+    }
 });
 
 audio.addEventListener('ended', () => {
