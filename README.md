@@ -1,50 +1,33 @@
 # Horizon Music Player
 
-A sleek, Neo-Brutalist desktop music player powered by Electron, featuring a custom YouTube Music proxy engine for ad-free streaming.
+A sleek, Neo-Brutalist desktop music player powered by Electron and a high-performance local **Go (Golang)** proxy engine.
 
 ## Prerequisites
 
-Before running the app, ensure you have the following installed on your system:
-1. **Node.js & npm**: Required to run the Electron app.
-2. **Bun**: Required for the high-performance local proxy server.
-3. **yt-dlp**: Required for extracting high-quality audio streams. 
-   *(Install via python: `pip install -U yt-dlp --break-system-packages`)*
+1. **Node.js & npm** (Node 18+)
+2. **Go** (1.20+)
+3. **yt-dlp** (installed in `~/.local/bin/yt-dlp`)
 
-## Installation
+## Quick Start
 
-1. Navigate to the project directory:
-   ```bash
-   cd /path/to/Horizon
-   ```
-
-2. Install the necessary dependencies (Electron, yt-search, ytmusic-api, etc.):
+1. **Install Node dependencies:**
    ```bash
    npm install
-   # or using bun
-   bun install
    ```
 
-## Running the App
+2. **Build and Run:**
+   ```bash
+   npm start
+   ```
 
-Starting the app is incredibly simple. The background proxy server (`youtube-proxy.js`) automatically launches alongside the Electron app.
-
-To start the app, simply run:
-```bash
-npm start
-```
+> [!NOTE]
+> `npm start` automatically compiles and starts the native Go backend daemon (`./horizon-backend`) alongside Electron. When you close the app, the backend process is cleanly terminated.
 
 ## Features
-- **Top Charts**: Automatically loads Billboard Top Hits on the home screen.
-- **Global YouTube Search**: Searches standard YouTube, supporting official songs, AMVs, covers, and edits.
-- **Custom Proxy Engine**: Bypasses ads and premium restrictions in real-time.
-- **Neo-Brutalist UI**: Clean, high-contrast, responsive design.
-- **Library Management**: Create playlists, edit names, delete playlists, and like songs.
-- **Full Playback Controls**: Shuffle, Repeat (Loop), Next, Previous, and synchronized Lyrics.
-
-## Troubleshooting
-
-- **Proxy Error / Audio not loading**: Make sure `yt-dlp` is installed and accessible in your system's PATH. YouTube frequently changes its extraction logic, so keep `yt-dlp` updated: `pip install -U yt-dlp --break-system-packages`.
-- **EADDRINUSE (Port 8000)**: The app runs a local proxy on port `8000`. Ensure no other application is using this port before starting the app.
-# Horizon
-# Horizon
-# Horizon
+- **Zero-Dependency Native Backend**: Single compiled Go binary replacing Python and virtual environments.
+- **Top Charts**: Automatically loads trending hits on the home screen.
+- **Global Search**: Search any video, creator, official song, remix, cover, or album.
+- **Direct Stream Extraction**: Real-time direct stream extraction using `yt-dlp`.
+- **In-Memory Caching**: Ultra-fast search and stream playback with Go mutex-protected caches.
+- **Offline Downloads**: Download songs locally to `~/Music/Horizon/` for offline listening.
+- **Neo-Brutalist UI**: Clean high-contrast theme, responsive layout, and playback controls.

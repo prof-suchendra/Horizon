@@ -4,8 +4,10 @@
   "description": "",
   "main": "main.js",
   "scripts": {
+    "build:backend": "go build -o horizon-backend main.go",
+    "prestart": "test -f horizon-backend || npm run build:backend",
     "start": "electron .",
-    "build": "node -c main.js && node -c swift-script.js && echo 'Build validation passed cleanly with 0 errors.'",
+    "build": "npm run build:backend && node -c main.js && node -c swift-script.js && echo 'Build validation passed cleanly with 0 errors.'",
     "test": "node -c main.js && node -c swift-script.js"
   },
   "keywords": [],

@@ -144,9 +144,67 @@ const audio = document.getElementById('audioPlayer');
 
 // State
 // --- API CONFIGURATION ---
-// Set to 'dev' for local backend (localhost:8000) or 'prod' for deployed proxy
-const ENV = 'prod';
-const PROXY_URL = ENV === 'prod' ? 'https://horizon-k6ec.onrender.com' : 'http://localhost:8000';
+// Local Go proxy backend (or configured remote Render instance)
+let PROXY_URL = localStorage.getItem('horizon_proxy_url') || 'http://127.0.0.1:8000';
+
+function setBackendProxyURL(newUrl) {
+    if (!newUrl) {
+        newUrl = 'http://127.0.0.1:8000';
+    }
+    newUrl = newUrl.replace(/\/+$/, '');
+    PROXY_URL = newUrl;
+    localStorage.setItem('horizon_proxy_url', newUrl);
+    showToast(`Backend updated: ${newUrl}`);
+    testBackendConnection();
+}
+
+// Keep-alive heartbeat: Pings Render backend every 10 minutes to prevent the 15-min inactivity sleep
+function initBackendKeepAlive() {
+    setInterval(async () => {
+        try {
+            await fetch(`${PROXY_URL}/health`, { method: 'GET', cache: 'no-store' });
+            console.log('[Horizon] Keep-alive ping sent to backend');
+        } catch(e) {
+            // Silently ignore ping errors
+        }
+    }, 10 * 60 * 1000); // 10 minutes
+}
+initBackendKeepAlive();
+
+async function testBackendConnection() {
+    try {
+        const res = await fetch(`${PROXY_URL}/health`);
+        if (res.ok) {
+            const data = await res.json();
+            const statusEl = document.getElementById('backendStatusBadge');
+            if (statusEl) {
+                statusEl.textContent = 'Online';
+                statusEl.style.color = '#10b981';
+            }
+            return true;
+        }
+    } catch(e) {
+        const statusEl = document.getElementById('backendStatusBadge');
+        if (statusEl) {
+            statusEl.textContent = 'Offline / Cold Starting';
+            statusEl.style.color = '#ef4444';
+        }
+    }
+    return false;
+}
+function promptBackendURL() {
+    openCustomPromptModal(
+        "BACKEND SERVER URL",
+        PROXY_URL,
+        "Enter URL (e.g. http://127.0.0.1:8000 or https://your-app.onrender.com)",
+        (newUrl) => {
+            if (newUrl !== null && newUrl !== undefined) {
+                setBackendProxyURL(newUrl.trim());
+            }
+        }
+    );
+}
+
 let queue = [];
 let currentIndex = -1;
 let isPlaying = false;
@@ -217,46 +275,145 @@ function showToast(msg) {
 }
 
 // ==========================================================================
+// THEME MANAGEMENT (Neo-Brutalist Dark & Light Modes)
+// ==========================================================================
+
+function setTheme(theme) {
+    if (theme === 'system') {
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        theme = prefersDark ? 'dark' : 'light';
+    }
+    
+    if (theme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.body.classList.add('dark-mode');
+    } else {
+        document.documentElement.removeAttribute('data-theme');
+        document.body.classList.remove('dark-mode');
+    }
+    
+    localStorage.setItem('theme', theme);
+    updateThemeUI(theme);
+}
+
+function toggleDarkMode() {
+    const isCurrentlyDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const nextTheme = isCurrentlyDark ? 'light' : 'dark';
+    setTheme(nextTheme);
+    showToast(nextTheme === 'dark' ? 'Dark Mode Enabled' : 'Light Mode Enabled');
+}
+
+function updateThemeUI(theme) {
+    const isDark = theme === 'dark';
+    const statusText = document.getElementById('themeStatusText');
+    if (statusText) statusText.textContent = isDark ? 'On' : 'Off';
+    
+    const sidebarText = document.getElementById('sidebarThemeText');
+    if (sidebarText) sidebarText.textContent = isDark ? 'Light Mode' : 'Dark Mode';
+    
+    const sidebarIcon = document.getElementById('sidebarThemeIcon');
+    if (sidebarIcon) {
+        sidebarIcon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+    }
+    
+    const themeIcon = document.getElementById('themeIcon');
+    if (themeIcon) {
+        themeIcon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+    }
+    
+    if (typeof lucide !== 'undefined' && lucide.createIcons) {
+        lucide.createIcons();
+    }
+}
+
+// ==========================================================================
 // HOME SCREEN DATA & LOGIC (Musify Spec Section 1)
 // ==========================================================================
 
-const SUGGESTED_PLAYLISTS = [
-    {
-        id: 'sug_today_top_hits',
-        title: "Today's Top Hits",
-        badge: 'PLAYLIST',
-        image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=80',
-        query: 'Top Hits Billboard'
-    },
-    {
-        id: 'sug_lofi_chill',
-        title: 'Chill Lofi Beats',
-        badge: 'ALBUM',
-        image: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=500&auto=format&fit=crop&q=80',
-        query: 'Lofi hip hop beats to relax'
-    },
-    {
-        id: 'sug_rock_classics',
-        title: 'Rock Classics',
-        badge: 'PLAYLIST',
-        image: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=500&auto=format&fit=crop&q=80',
-        query: 'Classic Rock Hits'
-    },
-    {
-        id: 'sug_synthwave',
-        title: 'Synthwave Neon',
-        badge: 'ALBUM',
+const DEFAULT_GENRE_CATALOG = {
+    'phonk': {
+        name: 'Phonk & Drift',
+        badge: 'GENRE MIX',
         image: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?w=500&auto=format&fit=crop&q=80',
-        query: 'Synthwave retro electro'
+        query: 'phonk drift bass music playlist'
     },
-    {
-        id: 'sug_deep_focus',
-        title: 'Deep Focus Ambient',
-        badge: 'PLAYLIST',
+    'lofi': {
+        name: 'Chill Lofi Beats',
+        badge: 'VIBE MIX',
+        image: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?w=500&auto=format&fit=crop&q=80',
+        query: 'lofi hip hop chill beats study relax'
+    },
+    'hiphop': {
+        name: 'Hip-Hop & Rap Central',
+        badge: 'TRENDING',
+        image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=500&auto=format&fit=crop&q=80',
+        query: 'hip hop rap top hits playlist'
+    },
+    'rock': {
+        name: 'Rock Classics & Modern',
+        badge: 'ROCK MIX',
+        image: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=500&auto=format&fit=crop&q=80',
+        query: 'classic rock modern rock hits playlist'
+    },
+    'electronic': {
+        name: 'EDM & Electronic Energy',
+        badge: 'ENERGY',
+        image: 'https://images.unsplash.com/photo-1571266028243-3716f02d2d2e?w=500&auto=format&fit=crop&q=80',
+        query: 'edm electronic dance gaming music mix'
+    },
+    'synthwave': {
+        name: 'Synthwave & Retrowave',
+        badge: 'RETRO',
+        image: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=500&auto=format&fit=crop&q=80',
+        query: 'synthwave retrowave 80s electro mix'
+    },
+    'pop': {
+        name: 'Global Pop Hits',
+        badge: 'POP MIX',
+        image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=500&auto=format&fit=crop&q=80',
+        query: 'top pop hits billboard hot 100'
+    },
+    'ambient': {
+        name: 'Deep Focus Ambient',
+        badge: 'FOCUS',
         image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&auto=format&fit=crop&q=80',
-        query: 'Ambient electronic study'
+        query: 'ambient electronic study focus calm'
+    },
+    'metal': {
+        name: 'Heavy Metal & Core',
+        badge: 'METAL',
+        image: 'https://images.unsplash.com/photo-1464375117522-1311d6a5b81f?w=500&auto=format&fit=crop&q=80',
+        query: 'heavy metal rock breakdown workout mix'
+    },
+    'anime': {
+        name: 'Anime OST & J-Pop',
+        badge: 'ANIME VIBES',
+        image: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=500&auto=format&fit=crop&q=80',
+        query: 'anime opening ost j-pop popular songs'
+    },
+    'rnb': {
+        name: 'Soul & Smooth R&B',
+        badge: 'SOUL',
+        image: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=500&auto=format&fit=crop&q=80',
+        query: 'smooth rnb soul chill tracks'
     }
-];
+};
+
+const GENRE_KEYWORD_RULES = {
+    'phonk': ['phonk', 'drift', 'brazilian phonk', 'kordhell', 'playaphonk', 'cowbell', 'slowed', 'reverb', 'dxrk', 'interworld'],
+    'lofi': ['lofi', 'lo-fi', 'chillhop', 'study', 'relax', 'sleep', 'beats to relax', 'coffee', 'jazzhop'],
+    'hiphop': ['rap', 'hip hop', 'hip-hop', 'trap', 'drake', 'eminem', 'travis', 'kanye', 'kendrick', 'juice wrld', 'carti', 'future', 'metro boomin', '21 savage', 'lil'],
+    'rock': ['rock', 'nirvana', 'queen', 'ac/dc', 'linkin park', 'metallica', 'guitar', 'punk', 'arctic monkeys', 'radiohead', 'oasis', 'foo fighters', 'green day'],
+    'electronic': ['edm', 'techno', 'house', 'dubstep', 'dance', 'alan walker', 'avicii', 'marshmello', 'skrillex', 'tiesto', 'martin garrix', 'electro'],
+    'synthwave': ['synthwave', 'retrowave', 'outrun', 'cyberpunk', 'carpenter brut', 'the midnight', 'kavinsky', '80s', 'neon'],
+    'pop': ['pop', 'taylor swift', 'ariana', 'the weeknd', 'billie eilish', 'dualipa', 'ed sheeran', 'bruno mars', 'olivia rodrigo', 'shawn mendes'],
+    'ambient': ['ambient', 'meditation', 'drone', 'peaceful', 'brian eno', 'sleep', 'rain', 'soundtrack', 'instrumental'],
+    'metal': ['metal', 'slipknot', 'metallica', 'avenged', 'rammstein', 'iron maiden', 'heavy metal', 'deathcore'],
+    'anime': ['anime', 'ost', 'j-pop', 'jpop', 'yoasobi', 'lisa', 'naruto', 'attack on titan', 'jujutsu', 'vocaloid', 'ado'],
+    'rnb': ['r&b', 'rnb', 'soul', 'sza', 'frank ocean', 'brent faiyaz', 'summer walker', 'daniel caesar', 'giveon']
+};
+
+let dynamicSuggestedPlaylists = [];
 
 const TIME_MACHINE_TOP_TRACKS = [
     {
@@ -416,12 +573,150 @@ function updateListeningStatsDisplay() {
     }
 }
 
+function getUserListeningGenreAffinity() {
+    const scores = {};
+    const artistScores = {};
+    
+    // Helper to score track
+    const addTrackAffinity = (song, weight = 1) => {
+        if (!song) return;
+        const text = `${song.title || ''} ${song.artist || ''}`.toLowerCase();
+        
+        if (song.artist && song.artist.trim()) {
+            const artKey = song.artist.trim();
+            artistScores[artKey] = (artistScores[artKey] || 0) + weight;
+        }
+
+        // Match against known genres
+        for (const [genre, keywords] of Object.entries(GENRE_KEYWORD_RULES)) {
+            for (const kw of keywords) {
+                if (text.includes(kw)) {
+                    scores[genre] = (scores[genre] || 0) + (weight * 2);
+                    break;
+                }
+            }
+        }
+    };
+
+    // 1. Analyze play counts (strongest signal)
+    try {
+        const counts = JSON.parse(localStorage.getItem('musify_play_counts') || '{}');
+        Object.values(counts).forEach(item => {
+            if (item && item.song) {
+                addTrackAffinity(item.song, item.count || 1);
+            }
+        });
+    } catch(e) {}
+
+    // 2. Analyze Liked songs (strong preference signal)
+    const likedPl = playlists.find(p => p.id === 'liked');
+    if (likedPl && Array.isArray(likedPl.songs)) {
+        likedPl.songs.forEach(song => addTrackAffinity(song, 3));
+    }
+
+    // 3. Analyze Recently Played (recency signal)
+    if (Array.isArray(recentlyPlayed)) {
+        recentlyPlayed.slice(0, 20).forEach((song, idx) => {
+            const recencyWeight = Math.max(1, 4 - Math.floor(idx / 5));
+            addTrackAffinity(song, recencyWeight);
+        });
+    }
+
+    // 4. Analyze Downloads
+    const downloads = getDownloadedSongs();
+    if (Array.isArray(downloads)) {
+        downloads.forEach(song => addTrackAffinity(song, 2));
+    }
+
+    const sortedGenres = Object.entries(scores).sort((a, b) => b[1] - a[1]).map(e => e[0]);
+    const sortedArtists = Object.entries(artistScores).sort((a, b) => b[1] - a[1]).map(e => e[0]);
+
+    return { genres: sortedGenres, artists: sortedArtists };
+}
+
+function getSuggestedPlaylists() {
+    const affinity = getUserListeningGenreAffinity();
+    const suggestions = [];
+    const usedIds = new Set();
+
+    // 1. If user has top artists, create "Artist & Similar" dynamic playlists
+    if (affinity.artists.length > 0) {
+        const topArtist = affinity.artists[0];
+        suggestions.push({
+            id: 'sug_artist_' + encodeURIComponent(topArtist.toLowerCase().replace(/[^a-z0-9]/g, '_')),
+            title: `${topArtist} Radio`,
+            badge: 'FOR YOU',
+            image: `https://picsum.photos/seed/${encodeURIComponent(topArtist)}/500/500`,
+            query: `${topArtist} best songs playlist mix`,
+            genre: 'artist'
+        });
+        usedIds.add(suggestions[0].id);
+
+        if (affinity.artists.length > 1) {
+            const secondArtist = affinity.artists[1];
+            suggestions.push({
+                id: 'sug_artist_' + encodeURIComponent(secondArtist.toLowerCase().replace(/[^a-z0-9]/g, '_')),
+                title: `${secondArtist} & Similar`,
+                badge: 'DAILY MIX',
+                image: `https://picsum.photos/seed/${encodeURIComponent(secondArtist)}/500/500`,
+                query: `${secondArtist} similar songs playlist mix`,
+                genre: 'artist'
+            });
+            usedIds.add(suggestions[1].id);
+        }
+    }
+
+    // 2. Add playlists for the user's top favorite genres
+    for (const g of affinity.genres) {
+        if (DEFAULT_GENRE_CATALOG[g]) {
+            const cat = DEFAULT_GENRE_CATALOG[g];
+            const id = 'sug_genre_' + g;
+            if (!usedIds.has(id)) {
+                suggestions.push({
+                    id: id,
+                    title: `${cat.name} Mix`,
+                    badge: cat.badge,
+                    image: cat.image,
+                    query: cat.query,
+                    genre: g
+                });
+                usedIds.add(id);
+            }
+        }
+        if (suggestions.length >= 6) break;
+    }
+
+    // 3. Fill remaining slots with curated genres so the list always has rich options
+    const fallbackGenreKeys = ['lofi', 'phonk', 'hiphop', 'electronic', 'rock', 'synthwave', 'pop', 'ambient'];
+    for (const g of fallbackGenreKeys) {
+        if (suggestions.length >= 6) break;
+        const id = 'sug_genre_' + g;
+        if (!usedIds.has(id) && DEFAULT_GENRE_CATALOG[g]) {
+            const cat = DEFAULT_GENRE_CATALOG[g];
+            suggestions.push({
+                id: id,
+                title: cat.name,
+                badge: cat.badge,
+                image: cat.image,
+                query: cat.query,
+                genre: g
+            });
+            usedIds.add(id);
+        }
+    }
+
+    dynamicSuggestedPlaylists = suggestions;
+    return suggestions;
+}
+
 function renderSuggestedPlaylists() {
     const container = document.getElementById('suggestedPlaylistsContainer');
     if (!container) return;
     container.innerHTML = '';
     
-    SUGGESTED_PLAYLISTS.forEach(pl => {
+    const playlistsList = getSuggestedPlaylists();
+    
+    playlistsList.forEach(pl => {
         const card = document.createElement('div');
         card.className = 'suggested-card';
         card.style.backgroundImage = `url('${pl.image}')`;
@@ -429,7 +724,7 @@ function renderSuggestedPlaylists() {
         
         card.innerHTML = `
             <div class="suggested-card-overlay">
-                <span class="suggested-badge ${pl.badge.toLowerCase()}">${pl.badge}</span>
+                <span class="suggested-badge ${pl.badge ? pl.badge.toLowerCase().replace(/\s+/g, '-') : ''}">${pl.badge || 'MIX'}</span>
                 <h3 class="suggested-title">${pl.title}</h3>
             </div>
         `;
@@ -438,7 +733,7 @@ function renderSuggestedPlaylists() {
 }
 
 async function openSuggestedPlaylist(id) {
-    const pl = SUGGESTED_PLAYLISTS.find(p => p.id === id);
+    const pl = dynamicSuggestedPlaylists.find(p => p.id === id);
     if (!pl) return;
     showToast(`Loading ${pl.title}...`);
     try {
@@ -1342,12 +1637,13 @@ async function executeSearch(query) {
         }
         
         
-        // Cold start warning timeout
+        // Search loading indicator
         let coldStartTimer = setTimeout(() => {
-            showToast("Waking up server, please wait...");
-            if(listEl) listEl.innerHTML = '<p style="text-align:center; padding: 30px; color:#999; font-weight:700;"><i data-lucide="loader" class="spin"></i><br><br>Waking up Render free tier server... (~30s)</p>';
-            try { lucide.createIcons(); } catch(e){}
-        }, 3000);
+            if (listEl && listEl.innerHTML.trim() === '') {
+                listEl.innerHTML = '<p style="text-align:center; padding: 30px; color:#999; font-weight:700;"><i data-lucide="loader" class="spin"></i><br><br>Searching songs...</p>';
+                try { lucide.createIcons(); } catch(e){}
+            }
+        }, 1500);
         
         console.log("DEBUG: Calling URL:", fetchUrl);
         const res = await fetch(fetchUrl);
@@ -2183,7 +2479,7 @@ function openPlaylistDetails(id) {
         if (optionsBtn) optionsBtn.style.display = 'none';
     } else if (id.startsWith('custom_suggested_')) {
         const sugId = id.replace('custom_suggested_', '');
-        const sug = SUGGESTED_PLAYLISTS.find(s => s.id === sugId);
+        const sug = (dynamicSuggestedPlaylists || []).find(s => s.id === sugId);
         if (titleEl) titleEl.textContent = sug ? sug.title : 'Suggested Playlist';
         if (optionsBtn) optionsBtn.style.display = 'none';
     } else if (id === 'radio_stations') {
@@ -2595,6 +2891,9 @@ window.addEventListener('keydown', (e) => {
             break;
         case 'KeyL':
             toggleLyricsOverlay();
+            break;
+        case 'KeyT':
+            toggleDarkMode();
             break;
         case 'ArrowUp':
             e.preventDefault();

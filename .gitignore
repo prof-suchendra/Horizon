@@ -1,19 +1,8 @@
-# Exclude Cordova and APK files
-horizonApp/
-*.apk
-
-# Exclude node_modules & python venv
+# Exclude node_modules and build artifacts
 node_modules/
-venv/
-__pycache__/
-*.pyc
-
-# Exclude temp files from debugging
+horizon-backend
+*.apk
 *.patch
-patch_*.js
-setup_env.sh
-build_apk.sh
-temp_*
 *.log
-.agent/
-.gemini/
+temp_*
+Music/

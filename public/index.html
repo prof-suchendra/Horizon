@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https: http:; img-src 'self' data: content: https: http:; connect-src 'self' https: http: http://localhost:8000 https://ssdas001-horizon.hf.space https://lrclib.net;">
 
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Horizon • Neo-Brutalist Music Player</title>
     <link rel="stylesheet" href="swift-style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -70,7 +69,10 @@
                 </div>
             </div>
 
-            <div class="sidebar-bottom">
+            <div class="sidebar-bottom" style="display: flex; flex-direction: column; gap: 8px;">
+                <button class="neo-action-btn" id="sidebarThemeBtn" onclick="toggleDarkMode()" style="width: 100%; font-size: 0.8rem; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i data-lucide="moon" id="sidebarThemeIcon"></i> <span id="sidebarThemeText">Dark Mode</span>
+                </button>
                 <button class="neo-action-btn" onclick="toggleShortcutsModal()" style="width: 100%; font-size: 0.8rem; padding: 10px;">
                     <i data-lucide="keyboard"></i> Shortcuts
                 </button>
@@ -263,6 +265,13 @@
             </div>
             
             <div class="settings-list">
+                <div class="setting-row" onclick="toggleDarkMode()" style="cursor: pointer;">
+                    <div class="setting-label">
+                        <i data-lucide="moon" id="themeIcon"></i>
+                        <span>Dark Mode</span>
+                    </div>
+                    <span class="setting-value" id="themeStatusText">Off</span>
+                </div>
                 <div class="setting-row" onclick="toggleShortcutsModal()">
                     <div class="setting-label">
                         <i data-lucide="command"></i>
@@ -277,12 +286,19 @@
                     </div>
                     <i data-lucide="chevron-right"></i>
                 </div>
+                <div class="setting-row" onclick="promptBackendURL()" style="cursor: pointer;">
+                    <div class="setting-label">
+                        <i data-lucide="server"></i>
+                        <span>Backend Server (Local/Render)</span>
+                    </div>
+                    <span class="setting-value" id="backendStatusBadge" style="font-weight: 700; color: #10b981;">Checking...</span>
+                </div>
                 <div class="setting-row">
                     <div class="setting-label">
                         <i data-lucide="radio"></i>
                         <span>Backend Engine</span>
                     </div>
-                    <span class="setting-value">YouTube / DAB Hi-Fi</span>
+                    <span class="setting-value">Go Proxy + Caching</span>
                 </div>
                 <div class="setting-row">
                     <div class="setting-label">
@@ -567,6 +583,10 @@
                 <div class="shortcut-item">
                     <span class="key-badge">L</span>
                     <span>Toggle Lyrics Overlay</span>
+                </div>
+                <div class="shortcut-item">
+                    <span class="key-badge">T</span>
+                    <span>Toggle Dark / Light Mode</span>
                 </div>
                 <div class="shortcut-item">
                     <span class="key-badge">Esc</span>

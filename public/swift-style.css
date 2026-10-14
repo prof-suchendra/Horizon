@@ -1,12 +1,3 @@
-* {
-    -webkit-tap-highlight-color: transparent;
-    -webkit-touch-callout: none;
-    outline: none;
-}
-html, body {
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-}
 :root {
     --bg-color: #f5f5f7;
     --card-bg: #ffffff;
@@ -32,6 +23,15 @@ html, body {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+}
+
+*::-webkit-scrollbar {
+    width: 0px !important;
+    height: 0px !important;
+    display: none !important;
+    background: transparent !important;
 }
 
 body {
@@ -1706,7 +1706,7 @@ h3 {
 }
 
 .time-machine-card {
-    background: #fff;
+    background: var(--card-bg);
     border: var(--border-width) solid var(--border-color);
     border-radius: 20px;
     box-shadow: 5px 5px 0px var(--border-color);
@@ -3067,3 +3067,386 @@ h3 {
     object-fit: cover;
 }
 .spin { animation: spin 1s linear infinite; } @keyframes spin { 100% { transform: rotate(360deg); } }
+
+/* ==========================================================================
+   NEO-BRUTALIST DARK MODE (Inverted Black & White Palette)
+   ========================================================================== */
+
+[data-theme="dark"] {
+    --bg-color: #0e0e11;
+    --card-bg: #18181d;
+    --text-primary: #ffffff;
+    --text-secondary: #a1a1aa;
+    --border-color: #ffffff;
+    --border-dark: #ffffff;
+    --shadow-offset: 4px;
+    --shadow-large: 6px;
+    --neo-shadow: 4px 4px 0px #ffffff;
+}
+
+[data-theme="dark"] body {
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .app-container {
+    background-color: var(--bg-color);
+}
+
+[data-theme="dark"] .app-sidebar {
+    background: #131317;
+    border-right: var(--border-width) solid #ffffff;
+}
+
+[data-theme="dark"] .sidebar-title {
+    color: #ffffff;
+}
+
+[data-theme="dark"] .sidebar-nav-item {
+    background: #131317;
+    color: #f5f5f7;
+    border-color: transparent;
+}
+
+[data-theme="dark"] .sidebar-nav-item:hover {
+    background: #23232c;
+    border-color: #ffffff;
+    box-shadow: 2px 2px 0px #ffffff;
+}
+
+[data-theme="dark"] .sidebar-nav-item.active {
+    background: #ffffff;
+    color: #000000;
+    border-color: #ffffff;
+    box-shadow: 3px 3px 0px #ffffff;
+}
+
+[data-theme="dark"] .sidebar-nav-item.active i {
+    color: #000000;
+}
+
+[data-theme="dark"] .sidebar-divider {
+    background: #ffffff;
+}
+
+[data-theme="dark"] .sidebar-bottom {
+    border-top: 2px solid #ffffff;
+}
+
+[data-theme="dark"] .sidebar-link-btn {
+    color: #e4e4e7;
+}
+
+[data-theme="dark"] .sidebar-link-btn:hover {
+    background: #23232c;
+    border-color: #ffffff;
+}
+
+[data-theme="dark"] .sidebar-section-label {
+    color: #a1a1aa;
+}
+
+[data-theme="dark"] .sidebar-logo-img,
+[data-theme="dark"] .home-logo-img {
+    border-color: #ffffff;
+    box-shadow: 3px 3px 0 #ffffff;
+}
+
+[data-theme="dark"] .app-main-viewport,
+[data-theme="dark"] .screen {
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .greeting,
+[data-theme="dark"] .section-title,
+[data-theme="dark"] .musify-wordmark,
+[data-theme="dark"] h1, 
+[data-theme="dark"] h2, 
+[data-theme="dark"] h3, 
+[data-theme="dark"] h4 {
+    color: #ffffff;
+}
+
+[data-theme="dark"] .song-item {
+    background: #18181d;
+    border-color: #ffffff;
+    box-shadow: 3px 3px 0px #ffffff;
+    color: #ffffff;
+}
+
+[data-theme="dark"] .song-item:hover {
+    box-shadow: 5px 5px 0px #ffffff;
+    background: #22222a;
+}
+
+[data-theme="dark"] .song-item.is-playing {
+    background: #2b2b36;
+    border-color: #ffffff;
+    box-shadow: 4px 4px 0px #ffffff;
+}
+
+[data-theme="dark"] .song-item .song-title,
+[data-theme="dark"] .song-item .track-title {
+    color: #ffffff;
+}
+
+[data-theme="dark"] .song-item .song-artist,
+[data-theme="dark"] .song-item .track-artist {
+    color: #a1a1aa;
+}
+
+[data-theme="dark"] .search-bar input {
+    background-color: #18181d;
+    color: #ffffff;
+    border-color: #ffffff;
+    box-shadow: 4px 4px 0px #ffffff;
+}
+
+[data-theme="dark"] .search-bar input:focus {
+    background-color: #212128;
+    box-shadow: 5px 5px 0px #ffffff;
+}
+
+[data-theme="dark"] .search-icon,
+[data-theme="dark"] .search-clear-btn {
+    color: #ffffff;
+}
+
+[data-theme="dark"] .neo-btn-icon,
+[data-theme="dark"] .neo-btn-icon-small,
+[data-theme="dark"] .neo-action-btn,
+[data-theme="dark"] .icon-btn {
+    background: #18181d;
+    color: #ffffff;
+    border-color: #ffffff;
+    box-shadow: 3px 3px 0px #ffffff;
+}
+
+[data-theme="dark"] .neo-btn-icon:hover,
+[data-theme="dark"] .neo-btn-icon-small:hover,
+[data-theme="dark"] .neo-action-btn:hover,
+[data-theme="dark"] .icon-btn:hover {
+    background: #262630;
+    box-shadow: 4px 4px 0px #ffffff;
+}
+
+[data-theme="dark"] .neo-btn-icon:active,
+[data-theme="dark"] .neo-action-btn:active,
+[data-theme="dark"] .icon-btn:active {
+    box-shadow: 1px 1px 0px #ffffff;
+}
+
+[data-theme="dark"] .mini-player {
+    background-color: #18181d;
+    border-color: #ffffff;
+    box-shadow: 4px 4px 0px #ffffff;
+}
+
+[data-theme="dark"] .mini-title {
+    color: #ffffff;
+}
+
+[data-theme="dark"] .mini-artist {
+    color: #a1a1aa;
+}
+
+[data-theme="dark"] #now-playing-screen {
+    background-color: #0e0e11;
+    border-left-color: #ffffff;
+    border-right-color: #ffffff;
+}
+
+[data-theme="dark"] .np-title {
+    color: #ffffff;
+}
+
+[data-theme="dark"] .np-artist {
+    color: #a1a1aa;
+}
+
+[data-theme="dark"] .np-disk-wrap {
+    background: #18181d;
+    border-color: #ffffff;
+    box-shadow: 6px 6px 0px #ffffff;
+}
+
+[data-theme="dark"] .neo-modal {
+    background: #18181d;
+    border-color: #ffffff;
+    box-shadow: 6px 6px 0px #ffffff;
+    color: #ffffff;
+}
+
+[data-theme="dark"] .modal-header h2 {
+    color: #ffffff;
+}
+
+[data-theme="dark"] .setting-row {
+    background: #18181d;
+    border-color: #ffffff;
+    color: #ffffff;
+    box-shadow: 3px 3px 0px #ffffff;
+}
+
+[data-theme="dark"] .setting-row:hover {
+    background: #23232c;
+}
+
+[data-theme="dark"] .setting-value {
+    color: #a1a1aa;
+}
+
+[data-theme="dark"] .profile-pill {
+    background: #18181d;
+    border-color: #ffffff;
+    color: #ffffff;
+}
+
+[data-theme="dark"] .card,
+[data-theme="dark"] .playlist-card,
+[data-theme="dark"] .suggested-card {
+    background: #18181d;
+    border-color: #ffffff;
+    box-shadow: 4px 4px 0px #ffffff;
+    color: #ffffff;
+}
+
+[data-theme="dark"] .bottom-sheet,
+[data-theme="dark"] .action-sheet {
+    background: #18181d;
+    border-top-color: #ffffff;
+    color: #ffffff;
+}
+
+[data-theme="dark"] .sheet-option-item {
+    color: #ffffff;
+}
+
+[data-theme="dark"] .sheet-option-item:hover {
+    background: #262632;
+}
+
+[data-theme="dark"] .bottom-nav {
+    background: #131317;
+    border-top: var(--border-width) solid #ffffff;
+}
+
+[data-theme="dark"] .nav-item {
+    color: #a1a1aa;
+}
+
+[data-theme="dark"] .nav-item.active {
+    color: #ffffff;
+}
+
+[data-theme="dark"] .key-badge {
+    background: #24242e;
+    color: #ffffff;
+    border-color: #ffffff;
+}
+
+[data-theme="dark"] .shortcut-item {
+    color: #ffffff;
+    border-bottom-color: #2e2e3a;
+}
+
+[data-theme="dark"] .toast-banner {
+    background: #18181d;
+    color: #ffffff;
+    border-color: #ffffff;
+    box-shadow: 4px 4px 0px #ffffff;
+}
+
+[data-theme="dark"] .lyric-line {
+    color: #71717a;
+}
+
+[data-theme="dark"] .lyric-line.active {
+    color: #ffffff;
+    text-shadow: 0 0 12px rgba(255, 255, 255, 0.4);
+}
+
+[data-theme="dark"] .time-machine-card {
+    background: #18181d !important;
+    border-color: #ffffff !important;
+    box-shadow: 5px 5px 0px #ffffff !important;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .time-machine-header {
+    border-bottom: 2px solid #282833 !important;
+}
+
+[data-theme="dark"] .time-machine-label {
+    color: #a1a1aa !important;
+}
+
+[data-theme="dark"] .stat-minutes-value {
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .time-machine-pill {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border-color: #ffffff !important;
+    box-shadow: 2px 2px 0px #ffffff !important;
+}
+
+[data-theme="dark"] .tm-song-item {
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .tm-song-item h4 {
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .tm-song-item p {
+    color: #a1a1aa !important;
+}
+
+[data-theme="dark"] .tm-song-item:hover {
+    background: #24242d !important;
+    border-color: #ffffff !important;
+    box-shadow: 2px 2px 0px #ffffff !important;
+}
+
+[data-theme="dark"] .tm-rank {
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .tm-cover {
+    border-color: #ffffff !important;
+}
+
+[data-theme="dark"] .tm-plays-badge {
+    background: #252530 !important;
+    color: #e4e4e7 !important;
+}
+
+[data-theme="dark"] .listening-stats-pill-btn {
+    background: #18181d !important;
+    color: #ffffff !important;
+    border-color: #ffffff !important;
+    box-shadow: 3px 3px 0px #ffffff !important;
+}
+
+[data-theme="dark"] .listening-stats-pill-btn:hover {
+    background: #262632 !important;
+    box-shadow: 4px 4px 0px #ffffff !important;
+}
+
+[data-theme="dark"] .suggested-badge {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border-color: #ffffff !important;
+    box-shadow: 1.5px 1.5px 0px #ffffff !important;
+}
+
+[data-theme="dark"] .suggested-badge.album {
+    background: #000000 !important;
+    color: #ffffff !important;
+    border-color: #ffffff !important;
+}
+
+
